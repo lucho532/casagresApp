@@ -1,0 +1,277 @@
+/* =========================================================
+   ADMINISTRACIÓN
+   ========================================================= */
+
+.administracion {
+  width: 100%;
+}
+
+.administracion-header {
+  margin-bottom: 24px;
+}
+
+.administracion-header h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.administracion-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+
+/* =========================================================
+   TARJETA PRINCIPAL
+   ========================================================= */
+
+.administracion-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   CABECERA DE LA TABLA
+   ========================================================= */
+
+.administracion-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.administracion-card-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.administracion-contador {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+
+/* =========================================================
+   TABLA
+   ========================================================= */
+
+.administracion-tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.administracion-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 850px;
+}
+
+.administracion-tabla th {
+  padding: 13px 16px;
+  text-align: left;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.administracion-tabla td {
+  padding: 15px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #374151;
+  font-size: 14px;
+}
+
+.administracion-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.administracion-tabla tbody tr:hover {
+  background: #f8fafc;
+}
+
+
+/* =========================================================
+   USUARIO
+   ========================================================= */
+
+.usuario-nombre {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.usuario-id {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   ROLES
+   ========================================================= */
+
+.badge-rol {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-admin {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.badge-usuario {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+
+/* =========================================================
+   ESTADO
+   ========================================================= */
+
+.badge-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.badge-estado::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.badge-inactivo {
+  color: #9ca3af;
+}
+
+.badge-inactivo::before {
+  background: #9ca3af;
+}
+
+
+/* =========================================================
+   ESTADOS DE CARGA Y ERROR
+   ========================================================= */
+
+.administracion-mensaje {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.administracion-error {
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+/* =========================================================
+   ACCIONES
+   ========================================================= */
+
+.boton-cambiar-rol {
+  padding: 7px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.boton-cambiar-rol:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.boton-cambiar-rol:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   ACCIONES DE USUARIO
+   ========================================================= */
+
+.acciones-usuario {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* =========================================================
+   BOTÓN CAMBIAR ESTADO
+   ========================================================= */
+
+.boton-cambiar-estado {
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+
+/* DESACTIVAR */
+
+.boton-desactivar {
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+}
+
+.boton-desactivar:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+
+/* ACTIVAR */
+
+.boton-activar {
+  border: 1px solid #bbf7d0;
+  background: #fff;
+  color: #16a34a;
+}
+
+.boton-activar:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+
+/* DESHABILITADO */
+
+.boton-cambiar-estado:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
