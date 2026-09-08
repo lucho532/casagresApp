@@ -1,6 +1,127 @@
-import { useState } from "react";
-import { iniciarSesion, registrarUsuario } from "../services/api";
+/*
+=========================================================
+ LOGIN - CASAGRES
+=========================================================
 
+Este componente se encarga de gestionar la pantalla de
+autenticación y registro de usuarios de la plataforma
+CASAGRES.
+
+FUNCIONALIDADES PRINCIPALES:
+
+1. INICIO DE SESIÓN
+   Permite al usuario introducir su usuario y contraseña.
+
+   Los datos se envían al backend mediante la función
+   iniciarSesion() del servicio API.
+
+   Si las credenciales son correctas, el backend devuelve
+   un JWT que se almacena en localStorage.
+
+   Después de guardar el token, se informa al componente
+   principal (App.jsx) de que el usuario se ha autenticado
+   correctamente.
+
+2. REGISTRO DE USUARIOS
+   Permite crear una nueva cuenta introduciendo:
+
+   - Nombre
+   - Correo electrónico
+   - Usuario
+   - Contraseña
+
+   Los datos se envían al backend mediante registrarUsuario().
+
+   Si el registro es correcto, se muestra un mensaje de
+   confirmación y el usuario vuelve automáticamente al
+   formulario de inicio de sesión.
+
+3. CAMBIO ENTRE LOGIN Y REGISTRO
+   El usuario puede cambiar entre los dos modos mediante
+   los enlaces situados debajo de cada formulario.
+
+   Al cambiar de modo se limpian los campos y los mensajes
+   anteriores.
+
+4. GESTIÓN DE ESTADOS
+   El componente controla diferentes estados de la interfaz:
+
+   - modoRegistro:
+     Determina si se muestra el formulario de registro o login.
+
+   - usuario:
+     Guarda el usuario introducido.
+
+   - password:
+     Guarda la contraseña introducida.
+
+   - nombre:
+     Guarda el nombre durante el registro.
+
+   - email:
+     Guarda el correo electrónico durante el registro.
+
+   - cargando:
+     Indica si se está realizando una petición al backend.
+
+   - error:
+     Contiene los mensajes de error que se muestran al usuario.
+
+   - mensaje:
+     Contiene mensajes informativos o de confirmación.
+
+5. MANEJO DE ERRORES
+   Los errores devueltos por la API se analizan según su
+   código HTTP.
+
+   Por ejemplo:
+
+   - 401 → Usuario o contraseña incorrectos.
+   - 409 → El usuario o correo ya existe.
+   - Otros errores → Problema de conexión o del servidor.
+
+IMPORTANTE:
+
+Este componente NO valida directamente las credenciales
+contra la base de datos.
+
+La autenticación real se realiza en el backend mediante
+la API de CASAGRES.
+
+El frontend únicamente:
+
+   React
+     ↓
+   Envía credenciales
+     ↓
+   API CASAGRES
+     ↓
+   Valida usuario
+     ↓
+   Genera JWT
+     ↓
+   React guarda el JWT
+     ↓
+   Usuario autenticado
+
+En futuras versiones este componente también podrá gestionar
+otros métodos de autenticación, como OAuth con Microsoft o
+Google, además del proceso de recuperación de contraseña.
+
+=========================================================
+*/
+
+import { useEffect, useState } from "react";
+import {
+  iniciarSesion,
+  registrarUsuario,
+  iniciarSesionMicrosoft,
+} from "../services/api";
+import { useMsal } from "@azure/msal-react";
+import { loginRequest } from "../authConfig";
+import "../styles/Login.css";
+
+console.log("LOGIN.JSX CARGADO");
 function Login({ iniciarSesionCorrectamente }) {
   const [modoRegistro, setModoRegistro] = useState(false);
 
@@ -12,6 +133,51 @@ function Login({ iniciarSesionCorrectamente }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+
+  const { instance } = useMsal();
+
+  useEffect(() => {
+    const procesarLoginMicrosoft = async () => {
+      const idToken = sessionStorage.getItem("microsoft_id_token");
+
+      if (!idToken) {
+        return;
+      }
+
+      try {
+        console.log("Procesando autenticación de Microsoft...");
+
+        setCargando(true);
+        setError("");
+        setMensaje("");
+
+        const respuesta = await iniciarSesionMicrosoft(idToken);
+
+        if (!respuesta.token) {
+          throw new Error("El servidor no devolvió un token de CASAGRES.");
+        }
+
+        localStorage.setItem("token", respuesta.token);
+
+        sessionStorage.removeItem("microsoft_id_token");
+
+        iniciarSesionCorrectamente();
+      } catch (err) {
+        console.error("Error al completar login Microsoft:", err);
+
+        sessionStorage.removeItem("microsoft_id_token");
+
+        setError(
+          err.response?.data?.mensaje ||
+            "No fue posible iniciar sesión con Microsoft.",
+        );
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    procesarLoginMicrosoft();
+  }, [iniciarSesionCorrectamente]);
 
   const manejarLogin = async (e) => {
     e.preventDefault();
@@ -41,6 +207,26 @@ function Login({ iniciarSesionCorrectamente }) {
         setError("No fue posible conectar con el servidor.");
       }
     } finally {
+      setCargando(false);
+    }
+  };
+
+  const manejarLoginMicrosoft = async () => {
+    try {
+      console.log("1. Iniciando login Microsoft");
+
+      setCargando(true);
+      setError("");
+      setMensaje("");
+
+      console.log("2. Redirigiendo a Microsoft");
+
+      await instance.loginRedirect(loginRequest);
+    } catch (err) {
+      console.error("Error al iniciar sesión con Microsoft:", err);
+
+      setError("No fue posible iniciar sesión con Microsoft.");
+
       setCargando(false);
     }
   };
@@ -212,7 +398,18 @@ function Login({ iniciarSesionCorrectamente }) {
             <button type="submit" className="login-boton" disabled={cargando}>
               {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
+            <div className="login-separador">
+              <span>o</span>
+            </div>
 
+            <button
+              type="button"
+              className="login-boton-microsoft"
+              onClick={manejarLoginMicrosoft}
+              disabled={cargando}
+            >
+              Continuar con Microsoft
+            </button>
             <button
               type="button"
               className="login-enlace"

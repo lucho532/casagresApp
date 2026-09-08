@@ -22,8 +22,16 @@ public class PipelineService
         _productoService = productoService;
     }
 
-    public async Task EjecutarPipeline()
+    public async Task EjecutarPipeline(int horizonte = 1)
     {
+        if (horizonte <= 0)
+        {
+            throw new ArgumentException(
+                "El horizonte debe ser mayor que cero.",
+                nameof(horizonte)
+            );
+        }
+
         if (!await _semaforo.WaitAsync(0))
         {
             throw new InvalidOperationException(
@@ -186,9 +194,30 @@ public class PipelineService
                 python,
                 prediccionIcmd,
                 "Predicción ICMD",
-                $"--series \"{archivoSeries}\" --salidas \"{carpetaSalidas}\""
+                $"--series \"{archivoSeries}\" --horizonte {horizonte} --salidas \"{carpetaSalidas}\""
             );
+            var rutaPronosticoFinal = Path.Combine(
+    carpetaSalidas,
+    "pronostico.csv"
+);
 
+            Console.WriteLine();
+            Console.WriteLine("========================================");
+            Console.WriteLine(" VERIFICACIÓN RESULTADO");
+            Console.WriteLine("========================================");
+            Console.WriteLine($"Archivo: {rutaPronosticoFinal}");
+            Console.WriteLine($"Existe: {File.Exists(rutaPronosticoFinal)}");
+
+            if (File.Exists(rutaPronosticoFinal))
+            {
+                Console.WriteLine(
+                    $"Última modificación: {File.GetLastWriteTime(rutaPronosticoFinal)}"
+                );
+
+                Console.WriteLine(
+                    $"Tamaño: {new FileInfo(rutaPronosticoFinal).Length} bytes"
+                );
+            }
 
             // --------------------------------------------------
             // 6. FINALIZANDO

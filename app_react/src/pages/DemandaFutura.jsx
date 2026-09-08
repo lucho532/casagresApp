@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerDashboard } from "../services/api";
+import "../styles/DemandaFutura.css";
+import "../styles/SelectorProducto.css";
 
-function DemandaFutura() {
+function DemandaFutura({ mesSeleccionado }) {
   const [dashboard, setDashboard] = useState(null);
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -10,6 +12,10 @@ function DemandaFutura() {
   // Búsqueda de productos
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
   const [busquedaProducto, setBusquedaProducto] = useState("");
+
+  // =========================================
+  // CARGAR DASHBOARD
+  // =========================================
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -20,16 +26,6 @@ function DemandaFutura() {
         const datos = await obtenerDashboard();
 
         setDashboard(datos);
-
-        if (datos?.productos?.length > 0) {
-          const productosConDemanda = datos.productos
-            .filter((producto) => producto.pronostico > 0)
-            .sort((a, b) => b.pronostico - a.pronostico);
-
-          if (productosConDemanda.length > 0) {
-            setReferenciaSeleccionada(productosConDemanda[0].referencia);
-          }
-        }
       } catch (err) {
         console.error(err);
 
@@ -43,18 +39,30 @@ function DemandaFutura() {
   }, []);
 
   // =========================================
-  // PRODUCTOS
+  // MES SELECCIONADO
+  // =========================================
+
+  const dashboardMesSeleccionado = useMemo(() => {
+    if (!dashboard?.meses) {
+      return null;
+    }
+
+    return dashboard.meses.find((mes) => mes.mes === mesSeleccionado);
+  }, [dashboard, mesSeleccionado]);
+
+  // =========================================
+  // PRODUCTOS DEL MES SELECCIONADO
   // =========================================
 
   const productos = useMemo(() => {
-    if (!dashboard?.productos) {
+    if (!dashboardMesSeleccionado?.productos) {
       return [];
     }
 
-    return [...dashboard.productos]
+    return [...dashboardMesSeleccionado.productos]
       .filter((producto) => producto.pronostico > 0)
       .sort((a, b) => b.pronostico - a.pronostico);
-  }, [dashboard]);
+  }, [dashboardMesSeleccionado]);
 
   // =========================================
   // PRODUCTOS FILTRADOS POR BÚSQUEDA
@@ -71,6 +79,25 @@ function DemandaFutura() {
       producto.referencia.toString().toLowerCase().includes(texto),
     );
   }, [productos, busquedaProducto]);
+
+  // =========================================
+  // ASEGURAR PRODUCTO SELECCIONADO
+  // =========================================
+
+  useEffect(() => {
+    if (productos.length === 0) {
+      setReferenciaSeleccionada("");
+      return;
+    }
+
+    const productoExiste = productos.some(
+      (producto) => producto.referencia === referenciaSeleccionada,
+    );
+
+    if (!productoExiste) {
+      setReferenciaSeleccionada(productos[0].referencia);
+    }
+  }, [productos, referenciaSeleccionada]);
 
   // =========================================
   // PRODUCTO SELECCIONADO
@@ -99,17 +126,17 @@ function DemandaFutura() {
   // =========================================
 
   const mesPronostico = useMemo(() => {
-    if (!dashboard?.mes) {
+    if (!mesSeleccionado) {
       return "-";
     }
 
-    const fecha = new Date(`${dashboard.mes}T00:00:00`);
+    const fecha = new Date(`${mesSeleccionado}T00:00:00`);
 
     return fecha.toLocaleDateString("es-CO", {
       month: "long",
       year: "numeric",
     });
-  }, [dashboard]);
+  }, [mesSeleccionado]);
 
   // =========================================
   // NIVEL DE CONFIANZA

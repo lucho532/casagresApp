@@ -1,0 +1,146 @@
+/* =========================================
+   SELECTOR PRODUCTO
+========================================= */
+
+.selector-producto {
+  min-width: 270px;
+}
+
+.selector-producto label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--texto-secundario);
+}
+
+.selector-producto select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  background: white;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--texto-principal);
+  cursor: pointer;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.selector-producto select:focus {
+  outline: none;
+  border-color: var(--casagres-principal);
+  box-shadow: 0 0 0 3px rgba(181, 74, 50, 0.12);
+}
+
+/* CONTROL CON BÚSQUEDA */
+.selector-producto-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.selector-producto-control select {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  background: white;
+  color: var(--texto-principal);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selector-producto-control select:focus {
+  border-color: var(--casagres-principal);
+  box-shadow: 0 0 0 3px rgba(181, 74, 50, 0.10);
+}
+
+/* BOTÓN LUPA */
+.boton-busqueda {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  background: white;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.boton-busqueda:hover {
+  border-color: var(--casagres-principal);
+  background: #faf3ef;
+  transform: translateY(-1px);
+}
+
+.boton-busqueda.activo {
+  border-color: var(--casagres-principal);
+  background: #f7dfd7;
+  color: var(--casagres-principal);
+}
+
+/* CAMPO Y RESULTADOS DE BÚSQUEDA */
+.campo-busqueda-producto {
+  position: relative;
+  margin-top: 8px;
+  animation: aparecerBusqueda 0.2s ease;
+}
+
+.campo-busqueda-producto input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--casagres-principal);
+  border-radius: 8px;
+  background: white;
+  color: var(--texto-principal);
+  font-size: 13px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(181, 74, 50, 0.08);
+}
+
+.campo-busqueda-producto input::placeholder {
+  color: #a49a95;
+}
+
+.campo-busqueda-producto input:focus {
+  border-color: var(--casagres-principal);
+  box-shadow: 0 0 0 3px rgba(181, 74, 50, 0.12);
+}
+
+.resultado-busqueda {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--texto-secundario);
+}
+
+@keyframes aparecerBusqueda {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 650px) {
+  .selector-producto {
+    width: 100%;
+  }
+
+  .selector-producto-control {
+    width: 100%;
+  }
+}

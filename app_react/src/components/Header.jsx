@@ -1,12 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-
-import { actualizarDatos, obtenerEstadoActualizacion } from "../services/api";
-
-function Header({ paginaActual }) {
-  const [actualizando, setActualizando] = useState(false);
-  const [estadoActualizacion, setEstadoActualizacion] = useState(null);
-
-  const intervaloRef = useRef(null);
+import { obtenerNombre, obtenerRol } from "../utils/auth";
+import "../styles/Header.css";
+function Header({ paginaActual, ultimaActualizacion }) {
+  const nombreUsuario = obtenerNombre();
+  const rolUsuario = obtenerRol();
 
   const titulos = {
     inicio: "Inicio",
@@ -14,138 +10,9 @@ function Header({ paginaActual }) {
     demanda: "Estimación de demanda futura",
     decisiones: "Enfoque en decisiones",
     powerbi: "Power BI",
+    productos: "Productos",
+    admin: "Administración",
   };
-
-  // --------------------------------------------------
-  // CONSULTAR ESTADO
-  // --------------------------------------------------
-
-  const consultarEstado = async () => {
-    try {
-      const estado = await obtenerEstadoActualizacion();
-
-      console.log("Estado del pipeline:", estado);
-
-      setEstadoActualizacion(estado);
-
-      if (estado.ejecutando) {
-        setActualizando(true);
-      } else {
-        setActualizando(false);
-
-        detenerSeguimiento();
-      }
-    } catch (error) {
-      console.error("Error consultando estado de actualización:", error);
-    }
-  };
-
-  // --------------------------------------------------
-  // INICIAR SEGUIMIENTO
-  // --------------------------------------------------
-
-  const iniciarSeguimiento = () => {
-    if (intervaloRef.current) {
-      return;
-    }
-
-    consultarEstado();
-
-    intervaloRef.current = setInterval(() => {
-      consultarEstado();
-    }, 1000);
-  };
-
-  // --------------------------------------------------
-  // DETENER SEGUIMIENTO
-  // --------------------------------------------------
-
-  const detenerSeguimiento = () => {
-    if (intervaloRef.current) {
-      clearInterval(intervaloRef.current);
-      intervaloRef.current = null;
-    }
-  };
-
-  // --------------------------------------------------
-  // EJECUTAR ACTUALIZACIÓN
-  // --------------------------------------------------
-
-  const ejecutarActualizacion = async () => {
-    if (actualizando) {
-      return;
-    }
-
-    setActualizando(true);
-
-    try {
-      iniciarSeguimiento();
-
-      await actualizarDatos();
-
-      await consultarEstado();
-    } catch (error) {
-      console.error("Error iniciando actualización:", error);
-
-      if (error.response?.status === 409) {
-        setActualizando(true);
-
-        setEstadoActualizacion({
-          ejecutando: true,
-          estado: "Ya hay una actualización en curso.",
-          progreso: 0,
-        });
-
-        iniciarSeguimiento();
-      } else {
-        setActualizando(false);
-
-        setEstadoActualizacion({
-          ejecutando: false,
-          estado:
-            error.response?.data?.mensaje || "Error durante la actualización.",
-          progreso: 0,
-          error: error.response?.data?.detalle || error.message,
-        });
-
-        detenerSeguimiento();
-      }
-    }
-  };
-
-  // --------------------------------------------------
-  // COMPROBAR ESTADO AL ABRIR
-  // --------------------------------------------------
-
-  useEffect(() => {
-    const comprobarActualizacion = async () => {
-      try {
-        const estado = await obtenerEstadoActualizacion();
-
-        console.log("Estado inicial del pipeline:", estado);
-
-        setEstadoActualizacion(estado);
-
-        if (estado.ejecutando) {
-          setActualizando(true);
-
-          iniciarSeguimiento();
-        }
-      } catch (error) {
-        console.error("Error obteniendo estado inicial:", error);
-      }
-    };
-
-    comprobarActualizacion();
-
-    return () => {
-      detenerSeguimiento();
-    };
-  }, []);
-
-  // --------------------------------------------------
-  // FORMATEAR FECHA
-  // --------------------------------------------------
 
   const formatearFecha = (fecha) => {
     if (!fecha) {
@@ -167,98 +34,34 @@ function Header({ paginaActual }) {
     });
   };
 
-  const ultimaActualizacion = formatearFecha(
-    estadoActualizacion?.ultimaActualizacion,
-  );
+  const fechaFormateada = formatearFecha(ultimaActualizacion);
 
   return (
     <header className="header">
-      {/* -------------------------------------------- */}
-      {/* TITULO */}
-      {/* -------------------------------------------- */}
-
       <div className="header-titulo">
         <h1>{titulos[paginaActual] || "CASAGRES"}</h1>
 
         <p>Plataforma de analítica y predicción de demanda</p>
       </div>
 
-      {/* -------------------------------------------- */}
-      {/* ACTUALIZACIÓN */}
-      {/* -------------------------------------------- */}
+      <div className="header-usuario">
+        <div className="header-usuario-icono">👤</div>
 
-      <div className="header-actualizacion">
-        <button
-          className={`boton-actualizar ${actualizando ? "actualizando" : ""}`}
-          onClick={ejecutarActualizacion}
-          disabled={actualizando}
-        >
-          <span className="icono-actualizar">{actualizando ? "↻" : "⟳"}</span>
+        <div className="header-usuario-info">
+          <span className="header-usuario-nombre">
+            {nombreUsuario || "Usuario"}
+          </span>
 
-          <span>{actualizando ? "Actualizando..." : "Actualizar datos"}</span>
-        </button>
+          <span className="header-usuario-rol">
+            {rolUsuario === "admin" ? "Administrador" : "Usuario"}
+          </span>
 
-        {/* ---------------------------------------- */}
-        {/* ESTADO ACTUAL */}
-        {/* ---------------------------------------- */}
-
-        {estadoActualizacion && (
-          <div className="estado-actualizacion">
-            <div className="estado-texto">
-              <span
-                className={`estado-punto ${
-                  estadoActualizacion.ejecutando
-                    ? "estado-punto-activo"
-                    : estadoActualizacion.error
-                      ? "estado-punto-error"
-                      : "estado-punto-ok"
-                }`}
-              />
-
-              <span>{estadoActualizacion.estado}</span>
-            </div>
-
-            {/* ------------------------------------ */}
-            {/* BARRA DE PROGRESO */}
-            {/* ------------------------------------ */}
-
-            {estadoActualizacion.ejecutando && (
-              <>
-                <div className="barra-progreso">
-                  <div
-                    className="barra-progreso-relleno"
-                    style={{
-                      width: `${Math.min(
-                        estadoActualizacion.progreso || 0,
-                        100,
-                      )}%`,
-                    }}
-                  />
-                </div>
-
-                <div className="progreso-porcentaje">
-                  {estadoActualizacion.progreso || 0}%
-                </div>
-              </>
-            )}
-
-            {/* ------------------------------------ */}
-            {/* ÚLTIMA ACTUALIZACIÓN */}
-            {/* ------------------------------------ */}
-
-            {ultimaActualizacion && (
-              <div className="ultima-actualizacion">
-                <span className="ultima-actualizacion-label">
-                  Última actualización:
-                </span>
-
-                <span className="ultima-actualizacion-fecha">
-                  {ultimaActualizacion}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+          {fechaFormateada && (
+            <span className="header-ultima-actualizacion">
+              Última actualización: {fechaFormateada}
+            </span>
+          )}
+        </div>
       </div>
     </header>
   );

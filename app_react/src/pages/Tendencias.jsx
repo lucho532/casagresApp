@@ -7,11 +7,14 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 
 import { obtenerDashboard, obtenerHistorico } from "../services/api";
+import "../styles/Tendencias.css";
+import "../styles/SelectorProducto.css";
 
-function Tendencias() {
+function Tendencias({ mesSeleccionado }) {
   const [dashboard, setDashboard] = useState(null);
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
   const [historico, setHistorico] = useState([]);
@@ -27,11 +30,10 @@ function Tendencias() {
   // =========================================
 
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
-
   const [busquedaProducto, setBusquedaProducto] = useState("");
 
   // =========================================
-  // OBTENER CATÁLOGO DE PRODUCTOS
+  // OBTENER DASHBOARD
   // =========================================
 
   useEffect(() => {
@@ -44,9 +46,10 @@ function Tendencias() {
 
         setDashboard(datos);
 
-        // Seleccionamos inicialmente el primer producto
-        if (datos?.productos?.length > 0) {
-          setReferenciaSeleccionada(datos.productos[0].referencia);
+        const meses = datos?.meses || [];
+
+        if (meses.length > 0 && meses[0].productos?.length > 0) {
+          setReferenciaSeleccionada(meses[0].productos[0].referencia);
         }
       } catch (err) {
         console.error(err);
@@ -94,7 +97,13 @@ function Tendencias() {
   // =========================================
 
   const productos = useMemo(() => {
-    return dashboard?.productos || [];
+    if (!dashboard?.meses) {
+      return [];
+    }
+
+    const primerMes = dashboard.meses[0];
+
+    return primerMes?.productos || [];
   }, [dashboard]);
 
   // =========================================
@@ -120,6 +129,120 @@ function Tendencias() {
   const productoSeleccionado = productos.find(
     (producto) => producto.referencia === referenciaSeleccionada,
   );
+
+  // =========================================
+  // PRONÓSTICOS DEL PRODUCTO
+  // =========================================
+
+  const pronosticosProducto = useMemo(() => {
+    if (!dashboard?.meses || !referenciaSeleccionada) {
+      return [];
+    }
+
+    return dashboard.meses
+      .filter((mes) => {
+        if (!mesSeleccionado) {
+          return true;
+        }
+
+        return mes.mes <= mesSeleccionado;
+      })
+      .map((mes) => {
+        const producto = mes.productos?.find(
+          (item) => item.referencia === referenciaSeleccionada,
+        );
+
+        if (!producto) {
+          return null;
+        }
+
+        return {
+          mes: mes.mes,
+          cantidad: Number(producto.pronostico || 0),
+        };
+      })
+      .filter(Boolean);
+  }, [dashboard, referenciaSeleccionada, mesSeleccionado]);
+
+  // =========================================
+  // ÚLTIMO MES REAL
+  // =========================================
+
+  const ultimoMesReal = useMemo(() => {
+    if (!historico.length) {
+      return null;
+    }
+
+    return historico[historico.length - 1]?.mes || null;
+  }, [historico]);
+
+  // =========================================
+  // DATOS PARA LA GRÁFICA
+  // =========================================
+
+  const datosGrafica = useMemo(() => {
+    if (!historico.length) {
+      return [];
+    }
+
+    const datos = [];
+
+    // -----------------------------------------
+    // HISTÓRICO REAL
+    // -----------------------------------------
+
+    historico.forEach((item) => {
+      if (mesSeleccionado && item.mes > mesSeleccionado) {
+        return;
+      }
+
+      datos.push({
+        mes: item.mes,
+        real: Number(item.cantidad || 0),
+        prediccion: null,
+      });
+    });
+
+    // -----------------------------------------
+    // PREDICCIONES
+    // -----------------------------------------
+
+    const predicciones = pronosticosProducto.filter(
+      (item) => item.mes > ultimoMesReal,
+    );
+
+    predicciones.forEach((item) => {
+      datos.push({
+        mes: item.mes,
+        real: null,
+        prediccion: item.cantidad,
+      });
+    });
+
+    // Orden cronológico
+    datos.sort((a, b) => a.mes.localeCompare(b.mes));
+
+    // -----------------------------------------
+    // CONECTAR ÚLTIMO REAL CON PREDICCIÓN
+    // -----------------------------------------
+
+    if (predicciones.length > 0 && historico.length > 0) {
+      const ultimoReal = historico[historico.length - 1];
+
+      const indiceUltimoReal = datos.findIndex(
+        (item) => item.mes === ultimoReal.mes,
+      );
+
+      if (indiceUltimoReal >= 0) {
+        datos[indiceUltimoReal] = {
+          ...datos[indiceUltimoReal],
+          prediccion: Number(ultimoReal.cantidad || 0),
+        };
+      }
+    }
+
+    return datos;
+  }, [historico, pronosticosProducto, ultimoMesReal, mesSeleccionado]);
 
   // =========================================
   // TOTALES
@@ -181,8 +304,6 @@ function Tendencias() {
           <label>Producto</label>
 
           <div className="selector-producto-control">
-            {/* DESPLEGABLE */}
-
             <select
               value={referenciaSeleccionada}
               onChange={(e) => setReferenciaSeleccionada(e.target.value)}
@@ -193,8 +314,6 @@ function Tendencias() {
                 </option>
               ))}
             </select>
-
-            {/* BOTÓN LUPA */}
 
             <button
               type="button"
@@ -255,15 +374,11 @@ function Tendencias() {
 
       {productoSeleccionado && (
         <div className="tendencias-info">
-          {/* REFERENCIA */}
-
           <div className="info-producto">
             <span className="info-label">Referencia</span>
 
             <strong>{productoSeleccionado.referencia}</strong>
           </div>
-
-          {/* MESES */}
 
           <div className="info-producto">
             <span className="info-label">Meses analizados</span>
@@ -271,15 +386,11 @@ function Tendencias() {
             <strong>{historico.length}</strong>
           </div>
 
-          {/* TOTAL */}
-
           <div className="info-producto">
             <span className="info-label">Total vendido</span>
 
             <strong>{totalHistorico.toLocaleString("es-CO")}</strong>
           </div>
-
-          {/* PROMEDIO */}
 
           <div className="info-producto">
             <span className="info-label">Promedio mensual</span>
@@ -300,7 +411,7 @@ function Tendencias() {
           <div>
             <h3>Evolución histórica</h3>
 
-            <p>Cantidad vendida por mes</p>
+            <p>Ventas reales y proyección de demanda</p>
           </div>
         </div>
 
@@ -312,7 +423,7 @@ function Tendencias() {
           <div className="grafica-container">
             <ResponsiveContainer width="100%" height={420}>
               <LineChart
-                data={historico}
+                data={datosGrafica}
                 margin={{
                   top: 10,
                   right: 20,
@@ -330,15 +441,42 @@ function Tendencias() {
                 <YAxis />
 
                 <Tooltip
-                  formatter={(valor) => Number(valor).toLocaleString("es-CO")}
+                  formatter={(valor, nombre) => [
+                    Number(valor).toLocaleString("es-CO"),
+                    nombre === "real" ? "Venta real" : "Predicción",
+                  ]}
                   labelFormatter={(valor) => `Mes: ${valor}`}
                 />
 
+                <Legend />
+
+                {/* =================================
+                    VENTAS REALES
+                ================================== */}
+
                 <Line
                   type="monotone"
-                  dataKey="cantidad"
+                  dataKey="real"
+                  name="Venta real"
                   stroke="#b54a32"
                   strokeWidth={3}
+                  dot={false}
+                  activeDot={{
+                    r: 6,
+                  }}
+                />
+
+                {/* =================================
+                    PREDICCIÓN
+                ================================== */}
+
+                <Line
+                  type="monotone"
+                  dataKey="prediccion"
+                  name="Predicción"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  strokeDasharray="8 6"
                   dot={false}
                   activeDot={{
                     r: 6,
@@ -373,13 +511,17 @@ function Tendencias() {
             </thead>
 
             <tbody>
-              {historico.map((item) => (
-                <tr key={item.mes}>
-                  <td>{item.mes}</td>
+              {historico
+                .filter(
+                  (item) => !mesSeleccionado || item.mes <= mesSeleccionado,
+                )
+                .map((item) => (
+                  <tr key={item.mes}>
+                    <td>{item.mes}</td>
 
-                  <td>{Number(item.cantidad).toLocaleString("es-CO")}</td>
-                </tr>
-              ))}
+                    <td>{Number(item.cantidad).toLocaleString("es-CO")}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

@@ -495,49 +495,27 @@ public class VentasController : ControllerBase
             // PRONÓSTICOS
             // ============================================
 
+            Console.WriteLine("================================");
+            Console.WriteLine("DASHBOARD LEYENDO:");
+            Console.WriteLine(rutaPronostico);
+            Console.WriteLine(
+                $"Última modificación: {System.IO.File.GetLastWriteTime(rutaPronostico)}"
+            );
+            Console.WriteLine("================================");
+
             var lineasPronostico =
                 System.IO.File.ReadAllLines(rutaPronostico);
 
-            var pronosticos =
-                new Dictionary<string, double>(
-                    StringComparer.OrdinalIgnoreCase);
-
-            string? mes = null;
-
-            if (lineasPronostico.Length > 1)
+            if (lineasPronostico.Length < 2)
             {
-                var encabezados =
-                    lineasPronostico[0].Split(',');
-
-                var valores =
-                    lineasPronostico[1].Split(',');
-
-                if (valores.Length > 0)
+                return NotFound(new
                 {
-                    mes = valores[0].Trim();
-                }
-
-                for (int i = 1; i < encabezados.Length; i++)
-                {
-                    if (i >= valores.Length)
-                        continue;
-
-                    var referencia =
-                        encabezados[i].Trim();
-
-                    if (string.IsNullOrWhiteSpace(referencia))
-                        continue;
-
-                    if (double.TryParse(
-                            valores[i],
-                            NumberStyles.Any,
-                            CultureInfo.InvariantCulture,
-                            out double pronostico))
-                    {
-                        pronosticos[referencia] = pronostico;
-                    }
-                }
+                    mensaje = "pronostico.csv no contiene datos."
+                });
             }
+
+            var encabezadosPronostico =
+                lineasPronostico[0].Split(',');
 
             // ============================================
             // INTERVALOS
@@ -546,12 +524,23 @@ public class VentasController : ControllerBase
             var lineasIntervalos =
                 System.IO.File.ReadAllLines(rutaIntervalos);
 
+            /*
+             * Clave:
+             *      mes + referencia
+             *
+             * Esto es importante porque ahora existen
+             * varios meses para la misma referencia.
+             */
             var intervalos =
-                new Dictionary<string, (double inferior,
-                                        double superior,
-                                        double halfWidth,
-                                        double alphaAci)>(
-                    StringComparer.OrdinalIgnoreCase);
+                new Dictionary<
+                    string,
+                    (double inferior,
+                     double superior,
+                     double halfWidth,
+                     double alphaAci)
+                >(
+                    StringComparer.OrdinalIgnoreCase
+                );
 
             for (int i = 1; i < lineasIntervalos.Length; i++)
             {
@@ -564,41 +553,58 @@ public class VentasController : ControllerBase
                 if (valores.Length < 8)
                     continue;
 
+                var mesIntervalo =
+                    valores[0].Trim();
+
                 var referencia =
                     valores[1].Trim();
 
-                if (string.IsNullOrWhiteSpace(referencia))
+                if (string.IsNullOrWhiteSpace(mesIntervalo) ||
+                    string.IsNullOrWhiteSpace(referencia))
+                {
                     continue;
+                }
 
                 if (!double.TryParse(
                         valores[4],
                         NumberStyles.Any,
                         CultureInfo.InvariantCulture,
                         out double inferior))
+                {
                     continue;
+                }
 
                 if (!double.TryParse(
                         valores[5],
                         NumberStyles.Any,
                         CultureInfo.InvariantCulture,
                         out double superior))
+                {
                     continue;
+                }
 
                 if (!double.TryParse(
                         valores[6],
                         NumberStyles.Any,
                         CultureInfo.InvariantCulture,
                         out double halfWidth))
+                {
                     continue;
+                }
 
                 if (!double.TryParse(
                         valores[7],
                         NumberStyles.Any,
                         CultureInfo.InvariantCulture,
                         out double alphaAci))
+                {
                     continue;
+                }
 
-                intervalos[referencia] =
+                var clave =
+                    $"{mesIntervalo}|{referencia}";
+
+                intervalos[clave] =
                     (
                         inferior,
                         superior,
@@ -615,11 +621,17 @@ public class VentasController : ControllerBase
                 System.IO.File.ReadAllLines(rutaMetodos);
 
             var metodos =
-                new Dictionary<string, (string metodo,
-                                        bool tieneHiperparametros,
-                                        int nScoresAci,
-                                        double alphaAci)>(
-                    StringComparer.OrdinalIgnoreCase);
+                new Dictionary<
+                    string,
+                    (
+                        string metodo,
+                        bool tieneHiperparametros,
+                        int nScoresAci,
+                        double alphaAci
+                    )
+                >(
+                    StringComparer.OrdinalIgnoreCase
+                );
 
             for (int i = 1; i < lineasMetodos.Length; i++)
             {
@@ -641,21 +653,27 @@ public class VentasController : ControllerBase
                 if (!bool.TryParse(
                         valores[2].Trim(),
                         out bool tieneHiperparametros))
+                {
                     continue;
+                }
 
                 if (!int.TryParse(
                         valores[3].Trim(),
                         NumberStyles.Integer,
                         CultureInfo.InvariantCulture,
                         out int nScoresAci))
+                {
                     continue;
+                }
 
                 if (!double.TryParse(
                         valores[4].Trim(),
                         NumberStyles.Any,
                         CultureInfo.InvariantCulture,
                         out double alphaAci))
+                {
                     continue;
+                }
 
                 if (string.IsNullOrWhiteSpace(referencia))
                     continue;
@@ -670,79 +688,153 @@ public class VentasController : ControllerBase
             }
 
             // ============================================
-            // CRUZAR INFORMACIÓN
+            // CONSTRUIR TODOS LOS MESES
             // ============================================
 
-            var referencias =
-                new HashSet<string>(
-                    pronosticos.Keys,
-                    StringComparer.OrdinalIgnoreCase);
+            var meses =
+                new List<DashboardMes>();
 
-            referencias.UnionWith(intervalos.Keys);
-            referencias.UnionWith(metodos.Keys);
-
-            var productos =
-                new List<DashboardProducto>();
-
-            foreach (var referencia in referencias.OrderBy(x => x))
+            /*
+             * Recorremos todas las filas del pronóstico.
+             *
+             * Cada fila representa un mes:
+             *
+             * 2025-03-01
+             * 2025-04-01
+             * 2025-05-01
+             * ...
+             */
+            for (int fila = 1; fila < lineasPronostico.Length; fila++)
             {
-                pronosticos.TryGetValue(
-                    referencia,
-                    out double pronostico);
+                if (string.IsNullOrWhiteSpace(lineasPronostico[fila]))
+                    continue;
 
-                metodos.TryGetValue(
-                    referencia,
-                    out var metodoInfo);
+                var valores =
+                    lineasPronostico[fila].Split(',');
 
-                intervalos.TryGetValue(
-                    referencia,
-                    out var intervaloInfo);
+                if (valores.Length == 0)
+                    continue;
 
-                var producto = new DashboardProducto
+                var mes =
+                    valores[0].Trim();
+
+                if (string.IsNullOrWhiteSpace(mes))
+                    continue;
+
+                var productos =
+                    new List<DashboardProducto>();
+
+                for (int columna = 1;
+                     columna < encabezadosPronostico.Length;
+                     columna++)
                 {
-                    Referencia = referencia,
+                    if (columna >= valores.Length)
+                        continue;
 
-                    Pronostico = pronostico,
+                    var referencia =
+                        encabezadosPronostico[columna].Trim();
 
-                    Metodo =
-                        metodoInfo.metodo,
+                    if (string.IsNullOrWhiteSpace(referencia))
+                        continue;
 
-                    TieneHiperparametros =
-                        metodoInfo.tieneHiperparametros,
+                    if (!double.TryParse(
+                            valores[columna],
+                            NumberStyles.Any,
+                            CultureInfo.InvariantCulture,
+                            out double pronostico))
+                    {
+                        continue;
+                    }
 
-                    NScoresAci =
-                        metodoInfo.nScoresAci,
+                    metodos.TryGetValue(
+                        referencia,
+                        out var metodoInfo
+                    );
 
-                    AlphaAci =
-                        intervaloInfo.alphaAci,
+                    var claveIntervalo =
+                        $"{mes}|{referencia}";
 
-                    Inferior =
-                        intervaloInfo.inferior,
+                    intervalos.TryGetValue(
+                        claveIntervalo,
+                        out var intervaloInfo
+                    );
 
-                    Superior =
-                        intervaloInfo.superior,
+                    var producto =
+                        new DashboardProducto
+                        {
+                            Referencia = referencia,
 
-                    HalfWidth =
-                        intervaloInfo.halfWidth
-                };
+                            Pronostico = pronostico,
 
-                productos.Add(producto);
+                            Metodo =
+                                metodoInfo.metodo,
+
+                            TieneHiperparametros =
+                                metodoInfo.tieneHiperparametros,
+
+                            NScoresAci =
+                                metodoInfo.nScoresAci,
+
+                            AlphaAci =
+                                intervaloInfo.alphaAci,
+
+                            Inferior =
+                                intervaloInfo.inferior,
+
+                            Superior =
+                                intervaloInfo.superior,
+
+                            HalfWidth =
+                                intervaloInfo.halfWidth
+                        };
+
+                    productos.Add(producto);
+                }
+
+                var dashboardMes =
+                    new DashboardMes
+                    {
+                        Mes = mes,
+
+                        CantidadProductos =
+                            productos.Count,
+
+                        Productos =
+                            productos
+                    };
+
+                meses.Add(dashboardMes);
             }
+
+            // ============================================
+            // ORDENAR MESES
+            // ============================================
+
+            meses =
+                meses
+                    .OrderBy(x => x.Mes)
+                    .ToList();
 
             // ============================================
             // RESPUESTA
             // ============================================
 
-            var respuesta = new DashboardRespuesta
+            var respuesta =
+                new DashboardRespuesta
+                {
+                    Meses = meses
+                };
+
+            Console.WriteLine(
+                $"Meses encontrados: {meses.Count}"
+            );
+
+            foreach (var periodo in meses)
             {
-                Mes = mes,
-
-                CantidadProductos =
-                    productos.Count,
-
-                Productos =
-                    productos
-            };
+                Console.WriteLine(
+                    $"  {periodo.Mes} -> {periodo.Productos.Count} productos"
+                );
+            }
 
             return Ok(respuesta);
         }
@@ -760,7 +852,6 @@ public class VentasController : ControllerBase
             );
         }
     }
-
 
     [HttpGet("historico")]
     public IActionResult ObtenerHistorico(

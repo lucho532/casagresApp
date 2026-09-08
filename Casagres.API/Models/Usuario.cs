@@ -14,7 +14,7 @@ public class Usuario
 
     public bool Activo { get; set; } = true;
 
-    public DateTime FechaCreacion { get; set; } = DateTime.Now;
+    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
     // NUEVO: Rol del usuario
     public string Rol { get; set; } = "usuario";

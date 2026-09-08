@@ -79,8 +79,13 @@ export const obtenerHistorico = async (referencia) => {
    PIPELINE
    ========================================================= */
 
-export const actualizarDatos = async () => {
-  const respuesta = await api.post("/Pipeline/actualizar");
+export const actualizarDatos = async (horizonte = 1) => {
+  const respuesta = await api.post("/Pipeline/actualizar", null, {
+    params: {
+      horizonte,
+    },
+  });
+
   return respuesta.data;
 };
 
@@ -154,6 +159,14 @@ export const cambiarEstado = async (id, activo) => {
       activo,
     }
   );
+
+  return respuesta.data;
+};
+
+export const iniciarSesionMicrosoft = async (idToken) => {
+  const respuesta = await api.post("/auth/microsoft", {
+    idToken,
+  });
 
   return respuesta.data;
 };

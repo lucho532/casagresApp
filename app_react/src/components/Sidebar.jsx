@@ -1,6 +1,14 @@
 import { obtenerRol } from "../utils/auth";
+import "../styles/Sidebar.css";
+import ControlActualizacion from "./ControlActualizacion";
 
-function Sidebar({ paginaActual, cambiarPagina, cerrarSesion }) {
+function Sidebar({
+  paginaActual,
+  cambiarPagina,
+  cerrarSesion,
+  onUltimaActualizacion,
+  onActualizacionCompletada,
+}) {
   const rol = obtenerRol();
 
   const opciones = [
@@ -32,6 +40,13 @@ function Sidebar({ paginaActual, cambiarPagina, cerrarSesion }) {
 
           <div className="logo-subtitulo">Analítica de ventas</div>
         </div>
+      </div>
+
+      <div className="sidebar-actualizacion">
+        <ControlActualizacion
+          onUltimaActualizacion={onUltimaActualizacion}
+          onActualizacionCompletada={onActualizacionCompletada}
+        />
       </div>
 
       <nav className="sidebar-menu">

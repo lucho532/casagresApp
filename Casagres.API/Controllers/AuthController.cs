@@ -86,6 +86,64 @@ public class AuthController : ControllerBase
             mensaje = "Usuario creado correctamente."
         });
     }
+
+    // ============================================================
+    // LOGIN CON MICROSOFT
+    // ============================================================
+
+    [AllowAnonymous]
+    [HttpPost("microsoft")]
+    public async Task<IActionResult> LoginMicrosoft(
+        [FromBody] MicrosoftLoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.IdToken))
+        {
+            return BadRequest(new
+            {
+                mensaje = "El token de Microsoft es obligatorio."
+            });
+        }
+
+        try
+        {
+            var token = await _authService
+                .LoginConMicrosoftAsync(request.IdToken);
+
+            if (token == null)
+            {
+                return Unauthorized(new
+                {
+                    mensaje =
+                        "No fue posible validar la cuenta de Microsoft."
+                });
+            }
+
+            return Ok(new
+            {
+                token
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Error en login Microsoft: {ex.Message}");
+
+            return Unauthorized(new
+            {
+                mensaje =
+                    "El token de Microsoft no es válido."
+            });
+        }
+    }
+}
+
+
+
+
+
+public class MicrosoftLoginRequest
+{
+    public string IdToken { get; set; } = string.Empty;
 }
 
 public class LoginRequest

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerProductos } from "../services/api";
+import "../styles/Productos.css";
 
 function Productos() {
   const [productos, setProductos] = useState([]);
@@ -21,7 +22,13 @@ function Productos() {
 
         const datos = await obtenerProductos();
 
-        setProductos(datos.productos || []);
+        const productosCargados = datos.productos || [];
+
+        setProductos(productosCargados);
+
+        if (productosCargados.length > 0) {
+          setProductoSeleccionado(productosCargados[0]);
+        }
       } catch (err) {
         console.error(err);
 

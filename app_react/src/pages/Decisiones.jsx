@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerDashboard } from "../services/api";
+import "../styles/Decisiones.css";
 
-function Decisiones() {
+function Decisiones({ mesSeleccionado }) {
   const [dashboard, setDashboard] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -33,9 +34,17 @@ function Decisiones() {
   // PRODUCTOS
   // =========================================
 
+  const mesAnalizado = useMemo(() => {
+    if (!dashboard?.meses || !mesSeleccionado) {
+      return null;
+    }
+
+    return dashboard.meses.find((mes) => mes.mes === mesSeleccionado);
+  }, [dashboard, mesSeleccionado]);
+
   const productos = useMemo(() => {
-    return dashboard?.productos || [];
-  }, [dashboard]);
+    return mesAnalizado?.productos || [];
+  }, [mesAnalizado]);
 
   // =========================================
   // PRODUCTOS ORDENADOS POR DEMANDA
@@ -138,7 +147,7 @@ function Decisiones() {
         <div className="decisiones-periodo">
           <span>Periodo analizado</span>
 
-          <strong>{dashboard?.mes || "-"}</strong>
+          <strong>{mesAnalizado?.mes || "-"}</strong>
         </div>
       </div>
 

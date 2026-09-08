@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerDashboard } from "../services/api";
+import "../styles/Inicio.css";
 
-function Inicio({ cambiarPagina }) {
+function Inicio({
+  cambiarPagina,
+  mesSeleccionado,
+  setMesSeleccionado,
+  mesesDisponibles,
+}) {
   const [dashboard, setDashboard] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -28,16 +34,30 @@ function Inicio({ cambiarPagina }) {
   }, []);
 
   // =========================================
-  // PRODUCTOS
+  // MES SELECCIONADO
+  // =========================================
+
+  const dashboardMesSeleccionado = useMemo(() => {
+    if (!dashboard?.meses) {
+      return null;
+    }
+
+    return dashboard.meses.find((mes) => mes.mes === mesSeleccionado);
+  }, [dashboard, mesSeleccionado]);
+
+  // =========================================
+  // PRODUCTOS DEL MES SELECCIONADO
   // =========================================
 
   const productos = useMemo(() => {
-    if (!dashboard?.productos) {
+    if (!dashboardMesSeleccionado?.productos) {
       return [];
     }
 
-    return dashboard.productos.filter((producto) => producto.pronostico > 0);
-  }, [dashboard]);
+    return dashboardMesSeleccionado.productos.filter(
+      (producto) => producto.pronostico > 0,
+    );
+  }, [dashboardMesSeleccionado]);
 
   // =========================================
   // PRODUCTOS CON MAYOR DEMANDA
@@ -96,6 +116,14 @@ function Inicio({ cambiarPagina }) {
   };
 
   // =========================================
+  // CAMBIAR MES GLOBAL
+  // =========================================
+
+  const cambiarMes = (mes) => {
+    setMesSeleccionado(mes);
+  };
+
+  // =========================================
   // CARGANDO
   // =========================================
 
@@ -139,10 +167,23 @@ function Inicio({ cambiarPagina }) {
           </p>
         </div>
 
+        {/* =================================
+            SELECTOR GLOBAL DE PERIODO
+        ================================== */}
+
         <div className="inicio-periodo">
           <span>Próximo periodo</span>
 
-          <strong>{formatearMes(dashboard?.mes)}</strong>
+          <select
+            value={mesSeleccionado}
+            onChange={(e) => cambiarMes(e.target.value)}
+          >
+            {mesesDisponibles.map((mes) => (
+              <option key={mes.mes} value={mes.mes}>
+                {formatearMes(mes.mes)}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -208,7 +249,7 @@ function Inicio({ cambiarPagina }) {
             <span>Periodo proyectado</span>
 
             <strong className="inicio-kpi-periodo">
-              {formatearMes(dashboard?.mes)}
+              {formatearMes(mesSeleccionado)}
             </strong>
 
             <small>Última estimación disponible</small>

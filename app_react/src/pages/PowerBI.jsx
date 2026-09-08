@@ -1,3 +1,5 @@
+import "../styles/PowerBI.css";
+
 function PowerBI() {
   const powerBiUrl =
     "https://app.powerbi.com/view?r=eyJrIjoiNWU2NzRjYzItYzkwOS00MDAzLTk4MTItYzJkMzE2YTNiMjNhIiwidCI6IjU3N2ZjMWQ4LTA5MjItNDU4ZS04N2JmLWVjNGY0NTVlYjYwMCIsImMiOjR9";

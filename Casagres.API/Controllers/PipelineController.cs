@@ -35,11 +35,11 @@ public class PipelineController : ControllerBase
         });
     }
     [HttpPost("ejecutar")]
-    public async Task<IActionResult> Ejecutar()
+    public async Task<IActionResult> Ejecutar(int horizonte = 1)
     {
         try
         {
-            await _pipelineService.EjecutarPipeline();
+            await _pipelineService.EjecutarPipeline(horizonte);
 
             return Ok(new
             {
@@ -96,11 +96,11 @@ public class PipelineController : ControllerBase
     }
 
     [HttpPost("actualizar")]
-    public async Task<IActionResult> Actualizar()
+    public async Task<IActionResult> Actualizar(int horizonte = 1)
     {
         try
         {
-            await _pipelineService.EjecutarPipeline();
+            await _pipelineService.EjecutarPipeline(horizonte);
 
             return Ok(new
             {
