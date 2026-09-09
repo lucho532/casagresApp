@@ -91,6 +91,11 @@ Thumbs.db
 
 data/
 
+# Informes de ventas reales, archivos intermedios y salidas
+# del pipeline ICMD (todo se regenera en cada ejecución y
+# los informes contienen datos comerciales confidenciales).
+Casagres.API/proyecto_icmd/
+
 # Configuración local de desarrollo
 **/appsettings.Development.json
 
@@ -99,4 +104,4 @@ data/
 # DOCUMENTACIÓN / ARCHIVOS PESADOS
 # =========================================================
 
-src/docs/
+docs/

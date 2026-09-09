@@ -23,26 +23,6 @@
   max-width: 650px;
 }
 
-.decisiones-periodo {
-  padding: 14px 18px;
-  border-left: 3px solid var(--casagres-principal);
-  background: white;
-  border-radius: 9px;
-  box-shadow: var(--sombra-suave);
-}
-
-.decisiones-periodo span {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 10px;
-  color: var(--texto-secundario);
-}
-
-.decisiones-periodo strong {
-  font-size: 14px;
-  color: var(--casagres-principal);
-}
-
 .decisiones-kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -56,8 +36,11 @@
   gap: 14px;
   min-height: 100px;
   padding: 18px;
-  background: white;
-  border: 1px solid var(--borde);
+  background: linear-gradient(160deg, #ffffff, #faf6f3);
+  border-top: 3px solid var(--casagres-principal);
+  border-right: 1px solid var(--borde);
+  border-bottom: 1px solid var(--borde);
+  border-left: 1px solid var(--borde);
   border-radius: 13px;
   box-shadow: var(--sombra-suave);
 }
@@ -173,7 +156,10 @@
 .decision-tabla {
   margin-bottom: 22px;
   background: white;
-  border: 1px solid var(--borde);
+  border-top: 4px solid var(--casagres-principal);
+  border-right: 1px solid var(--borde);
+  border-bottom: 1px solid var(--borde);
+  border-left: 1px solid var(--borde);
   border-radius: 14px;
   overflow: hidden;
   box-shadow: var(--sombra-suave);
@@ -186,6 +172,7 @@
   gap: 20px;
   padding: 21px 23px;
   border-bottom: 1px solid var(--borde);
+  background: linear-gradient(90deg, #ffffff, #fbf7f4);
 }
 
 .decision-tabla-header h3 {
@@ -296,8 +283,11 @@
 /* INTERPRETACIÓN */
 .decisiones-interpretacion {
   padding: 22px 24px;
-  background: white;
-  border: 1px solid var(--borde);
+  background: linear-gradient(180deg, #ffffff, #fbf7f4);
+  border-top: 4px solid var(--casagres-principal);
+  border-right: 1px solid var(--borde);
+  border-bottom: 1px solid var(--borde);
+  border-left: 1px solid var(--borde);
   border-radius: 14px;
   box-shadow: var(--sombra-suave);
 }
@@ -372,11 +362,6 @@
 }
 
 @media (max-width: 700px) {
-  .decisiones-periodo {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
   .decision-recomendacion {
     flex-wrap: wrap;
   }

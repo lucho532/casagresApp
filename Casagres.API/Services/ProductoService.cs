@@ -59,9 +59,7 @@ public class ProductoService
             _productosCache = null;
         }
 
-        Console.WriteLine(
-            "Caché de productos eliminada."
-        );
+        Console.WriteLine("Caché de productos eliminada.");
     }
 
     // =========================================
@@ -71,195 +69,104 @@ public class ProductoService
     private List<object> CargarProductosDesdeExcel()
     {
         Console.WriteLine();
-        Console.WriteLine(
-            "Cargando catálogo de productos desde Excel..."
-        );
+        Console.WriteLine("Cargando catálogo de productos desde Excel...");
 
         var inicio = DateTime.Now;
+        var rutaArchivo = ObtenerRutaArchivoExcel();
 
-        var carpetaDatos =
-            _configuration["Rutas:CarpetaDatos"];
+        using var workbook = new XLWorkbook(rutaArchivo);
+        var worksheet = workbook.Worksheets.First();
 
-        if (string.IsNullOrWhiteSpace(carpetaDatos))
-        {
-            throw new Exception(
-                "No se encontró la configuración Rutas:CarpetaDatos."
-            );
-        }
+        var columnas = ObtenerColumnas(worksheet);
+        var resultado = LeerProductosUnicos(worksheet, columnas);
 
-        var rutaArchivo = Path.Combine(
-            carpetaDatos,
-            "Ventas_Casagres_Limpio_PowerBI.xlsx"
-        );
-
-        if (!File.Exists(rutaArchivo))
-        {
-            throw new FileNotFoundException(
-                $"No se encontró el archivo: {rutaArchivo}"
-            );
-        }
-
-        using var workbook =
-            new XLWorkbook(rutaArchivo);
-
-        var worksheet =
-            workbook.Worksheets.First();
-
-        // =========================================
-        // OBTENER ENCABEZADOS
-        // =========================================
-
-        var primeraFila =
-            worksheet.FirstRowUsed();
-
-        if (primeraFila == null)
-        {
-            throw new Exception(
-                "El archivo Excel no contiene datos."
-            );
-        }
-
-        var encabezados = primeraFila.Cells()
-            .ToDictionary(
-                celda =>
-                    celda.GetString()
-                        .Trim()
-                        .ToLower(),
-                celda => celda.Address.ColumnNumber
-            );
-
-        // =========================================
-        // VALIDAR COLUMNAS
-        // =========================================
-
-        int ObtenerColumna(string nombre)
-        {
-            if (!encabezados.TryGetValue(
-                    nombre.ToLower(),
-                    out var columna))
-            {
-                throw new Exception(
-                    $"No se encontró la columna '{nombre}' en el Excel."
-                );
-            }
-
-            return columna;
-        }
-
-        var colReferencia =
-            ObtenerColumna("referencia_producto");
-
-        var colDescripcion =
-            ObtenerColumna("descripcion_producto");
-
-        var colMarca =
-            ObtenerColumna("marca");
-
-        var colLinea =
-            ObtenerColumna(
-                "descripcion_linea_inventarios"
-            );
-
-        var colGrupo =
-            ObtenerColumna(
-                "descripcion_grupo_inventarios"
-            );
-
-        var colClase =
-            ObtenerColumna("clase_producto");
-
-        var colPlanta =
-            ObtenerColumna("planta");
-
-        // =========================================
-        // LEER PRODUCTOS ÚNICOS
-        // =========================================
-
-        var productos =
-            new Dictionary<string, object>();
-
-        foreach (var fila in worksheet.RowsUsed().Skip(1))
-        {
-            var referencia =
-                fila.Cell(colReferencia)
-                    .GetString()
-                    .Trim();
-
-            if (string.IsNullOrWhiteSpace(referencia))
-            {
-                continue;
-            }
-
-            if (productos.ContainsKey(referencia))
-            {
-                continue;
-            }
-
-            var descripcion =
-                fila.Cell(colDescripcion)
-                    .GetString()
-                    .Trim();
-
-            var marca =
-                fila.Cell(colMarca)
-                    .GetString()
-                    .Trim();
-
-            var linea =
-                fila.Cell(colLinea)
-                    .GetString()
-                    .Trim();
-
-            var grupo =
-                fila.Cell(colGrupo)
-                    .GetString()
-                    .Trim();
-
-            var clase =
-                fila.Cell(colClase)
-                    .GetString()
-                    .Trim();
-
-            var planta =
-                fila.Cell(colPlanta)
-                    .GetString()
-                    .Trim();
-
-            productos.Add(
-                referencia,
-                new
-                {
-                    referencia,
-                    descripcion,
-                    marca,
-                    linea,
-                    grupo,
-                    clase,
-                    planta
-                }
-            );
-        }
-
-        var resultado = productos.Values
-            .OrderBy(producto =>
-                producto.GetType()
-                    .GetProperty("referencia")!
-                    .GetValue(producto)!
-                    .ToString()
-            )
-            .ToList();
-
-        var tiempo =
-            DateTime.Now - inicio;
-
-        Console.WriteLine(
-            $"Catálogo cargado: {resultado.Count} productos."
-        );
-
-        Console.WriteLine(
-            $"Tiempo de carga: {tiempo.TotalSeconds:F2} segundos."
-        );
+        LogResultado(resultado.Count, DateTime.Now - inicio);
 
         return resultado;
     }
+
+    private string ObtenerRutaArchivoExcel()
+    {
+        var carpetaDatos = _configuration["Rutas:CarpetaDatos"];
+
+        if (string.IsNullOrWhiteSpace(carpetaDatos))
+        {
+            throw new Exception("No se encontró la configuración Rutas:CarpetaDatos.");
+        }
+
+        var rutaArchivo = Path.Combine(carpetaDatos, "Ventas_Casagres_Limpio_PowerBI.xlsx");
+
+        if (!File.Exists(rutaArchivo))
+        {
+            throw new FileNotFoundException($"No se encontró el archivo: {rutaArchivo}");
+        }
+
+        return rutaArchivo;
+    }
+
+    private static ColumnasProducto ObtenerColumnas(IXLWorksheet worksheet)
+    {
+        var primeraFila = worksheet.FirstRowUsed()
+            ?? throw new Exception("El archivo Excel no contiene datos.");
+
+        var encabezados = primeraFila.Cells()
+            .ToDictionary(
+                celda => celda.GetString().Trim().ToLower(),
+                celda => celda.Address.ColumnNumber);
+
+        int Columna(string nombre) =>
+            encabezados.TryGetValue(nombre.ToLower(), out var columna)
+                ? columna
+                : throw new Exception($"No se encontró la columna '{nombre}' en el Excel.");
+
+        return new ColumnasProducto(
+            Referencia: Columna("referencia_producto"),
+            Descripcion: Columna("descripcion_producto"),
+            Marca: Columna("marca"),
+            Linea: Columna("descripcion_linea_inventarios"),
+            Grupo: Columna("descripcion_grupo_inventarios"),
+            Clase: Columna("clase_producto"),
+            Planta: Columna("planta"));
+    }
+
+    private static List<object> LeerProductosUnicos(IXLWorksheet worksheet, ColumnasProducto columnas)
+    {
+        // Clave = referencia, para descartar duplicados conservando el primero.
+        var productos = new Dictionary<string, object>();
+
+        foreach (var fila in worksheet.RowsUsed().Skip(1))
+        {
+            var referencia = fila.Cell(columnas.Referencia).GetString().Trim();
+
+            if (string.IsNullOrWhiteSpace(referencia) || productos.ContainsKey(referencia))
+                continue;
+
+            productos[referencia] = LeerProducto(fila, columnas, referencia);
+        }
+
+        return productos
+            .OrderBy(par => par.Key)
+            .Select(par => par.Value)
+            .ToList();
+    }
+
+    private static object LeerProducto(IXLRow fila, ColumnasProducto columnas, string referencia) => new
+    {
+        referencia,
+        descripcion = fila.Cell(columnas.Descripcion).GetString().Trim(),
+        marca = fila.Cell(columnas.Marca).GetString().Trim(),
+        linea = fila.Cell(columnas.Linea).GetString().Trim(),
+        grupo = fila.Cell(columnas.Grupo).GetString().Trim(),
+        clase = fila.Cell(columnas.Clase).GetString().Trim(),
+        planta = fila.Cell(columnas.Planta).GetString().Trim()
+    };
+
+    private static void LogResultado(int cantidad, TimeSpan tiempo)
+    {
+        Console.WriteLine($"Catálogo cargado: {cantidad} productos.");
+        Console.WriteLine($"Tiempo de carga: {tiempo.TotalSeconds:F2} segundos.");
+    }
+
+    private readonly record struct ColumnasProducto(
+        int Referencia, int Descripcion, int Marca, int Linea, int Grupo, int Clase, int Planta);
 }

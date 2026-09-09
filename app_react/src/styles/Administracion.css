@@ -6,24 +6,6 @@
   width: 100%;
 }
 
-.administracion-header {
-  margin-bottom: 24px;
-}
-
-.administracion-header h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.administracion-header p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 15px;
-}
-
-
 /* =========================================================
    TARJETA PRINCIPAL
    ========================================================= */
@@ -171,24 +153,6 @@
   background: #9ca3af;
 }
 
-
-/* =========================================================
-   ESTADOS DE CARGA Y ERROR
-   ========================================================= */
-
-.administracion-mensaje {
-  padding: 40px;
-  text-align: center;
-  color: #6b7280;
-}
-
-.administracion-error {
-  padding: 18px 20px;
-  border-radius: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
-}
 
 /* =========================================================
    ACCIONES

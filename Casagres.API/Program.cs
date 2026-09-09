@@ -1,6 +1,7 @@
 using Casagres.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Casagres.API.Services;
+using Casagres.API.Services.Pronostico;
 using Casagres.API;
 
 
@@ -17,11 +18,16 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddHttpClient();
-builder.Services.AddHttpClient<OneDriveService>();
 builder.Services.AddScoped<ExcelExportService>();
-builder.Services.AddSingleton<PipelineService>();
-builder.Services.AddSingleton<PipelineEstadoService>();
-builder.Services.AddHostedService<ActualizacionAutomaticaService>();
+builder.Services.AddScoped<RutasDatosService>();
+builder.Services.AddScoped<PronosticoCsvService>();
+builder.Services.AddScoped<PronosticoIntervalosCsvService>();
+builder.Services.AddScoped<MetodosCsvService>();
+builder.Services.AddScoped<DashboardPronosticoService>();
+builder.Services.AddScoped<HistoricoVentasService>();
+builder.Services.AddSingleton<ActualizacionService>();
+builder.Services.AddSingleton<ActualizacionEstadoService>();
+builder.Services.AddHostedService<MonitorOneDriveService>();
 builder.Services.AddSingleton<ProductoService>();
 builder.Services.AddScoped<AuthService>();
 //Autenticacion 

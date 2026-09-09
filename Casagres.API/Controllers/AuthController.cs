@@ -1,3 +1,4 @@
+using Casagres.API.Models.Dtos.Auth;
 using Casagres.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -135,31 +136,4 @@ public class AuthController : ControllerBase
             });
         }
     }
-}
-
-
-
-
-
-public class MicrosoftLoginRequest
-{
-    public string IdToken { get; set; } = string.Empty;
-}
-
-public class LoginRequest
-{
-    public string Usuario { get; set; } = string.Empty;
-
-    public string Password { get; set; } = string.Empty;
-}
-
-public class RegistroRequest
-{
-    public string Usuario { get; set; } = string.Empty;
-
-    public string Password { get; set; } = string.Empty;
-
-    public string Nombre { get; set; } = string.Empty;
-
-    public string Email { get; set; } = string.Empty;
 }

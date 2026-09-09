@@ -1,4 +1,4 @@
-using Casagres.API.Models;
+using Casagres.API.Models.Dtos.Administracion;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -96,12 +96,6 @@ public class AdministracionController : ControllerBase
         });
     }
 
-    public class CambiarRolRequest
-    {
-        public string Rol { get; set; } = string.Empty;
-    }
-
-
     [HttpPut("usuarios/{id}/estado")]
     public async Task<IActionResult> CambiarEstado(
     long id,
@@ -144,10 +138,5 @@ public class AdministracionController : ControllerBase
             usuario.Id,
             usuario.Activo
         });
-    }
-
-    public class CambiarEstadoRequest
-    {
-        public bool Activo { get; set; }
     }
 }

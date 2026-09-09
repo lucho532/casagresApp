@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { obtenerDashboard } from "../services/api";
+import { useMemo } from "react";
+import { useDashboard } from "../hooks/useDashboard";
+import { formatearNumero, formatearMes } from "../utils/formato";
+import EstadoCargando from "../components/EstadoCargando";
+import MensajeError from "../components/MensajeError";
 import "../styles/Inicio.css";
 
 function Inicio({
@@ -8,30 +11,9 @@ function Inicio({
   setMesSeleccionado,
   mesesDisponibles,
 }) {
-  const [dashboard, setDashboard] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        setCargando(true);
-        setError("");
-
-        const datos = await obtenerDashboard();
-
-        setDashboard(datos);
-      } catch (err) {
-        console.error(err);
-
-        setError("No fue posible cargar el resumen de la plataforma.");
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    cargarDatos();
-  }, []);
+  const { dashboard, cargando, error } = useDashboard(
+    "No fue posible cargar el resumen de la plataforma.",
+  );
 
   // =========================================
   // MES SELECCIONADO
@@ -87,35 +69,6 @@ function Inicio({
   const productoPrincipal = productosMayorDemanda[0];
 
   // =========================================
-  // FORMATEAR NÚMEROS
-  // =========================================
-
-  const formatearNumero = (numero) => {
-    if (numero == null) {
-      return "-";
-    }
-
-    return Math.round(numero).toLocaleString("es-CO");
-  };
-
-  // =========================================
-  // FORMATEAR MES
-  // =========================================
-
-  const formatearMes = (mes) => {
-    if (!mes) {
-      return "-";
-    }
-
-    const fecha = new Date(`${mes}T00:00:00`);
-
-    return fecha.toLocaleDateString("es-CO", {
-      month: "long",
-      year: "numeric",
-    });
-  };
-
-  // =========================================
   // CAMBIAR MES GLOBAL
   // =========================================
 
@@ -128,13 +81,7 @@ function Inicio({
   // =========================================
 
   if (cargando) {
-    return (
-      <div className="pagina">
-        <div className="estado-cargando">
-          Cargando resumen de la plataforma...
-        </div>
-      </div>
-    );
+    return <EstadoCargando mensaje="Cargando resumen de la plataforma..." />;
   }
 
   // =========================================
@@ -142,11 +89,7 @@ function Inicio({
   // =========================================
 
   if (error) {
-    return (
-      <div className="pagina">
-        <div className="mensaje-error">{error}</div>
-      </div>
-    );
+    return <MensajeError mensaje={error} />;
   }
 
   return (

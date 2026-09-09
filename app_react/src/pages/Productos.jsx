@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerProductos } from "../services/api";
+import EstadoCargando from "../components/EstadoCargando";
+import MensajeError from "../components/MensajeError";
 import "../styles/Productos.css";
 
 function Productos() {
@@ -10,11 +12,22 @@ function Productos() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  // El backend cachea el catálogo en memoria; solo la primera carga (o la
+  // primera después de una actualización) lee el Excel y tarda más.
+  // Si la respuesta no llega rápido, avisamos que puede estar importando.
+  const [importandoPrimeraVez, setImportandoPrimeraVez] = useState(false);
+
   // =========================================
   // CARGAR PRODUCTOS
   // =========================================
 
   useEffect(() => {
+    // Si la carga tarda, probablemente el backend está importando el
+    // catálogo desde Excel por no tener aún nada en caché.
+    const temporizador = setTimeout(() => {
+      setImportandoPrimeraVez(true);
+    }, 1200);
+
     const cargarProductos = async () => {
       try {
         setCargando(true);
@@ -35,10 +48,13 @@ function Productos() {
         setError("No fue posible obtener el catálogo de productos.");
       } finally {
         setCargando(false);
+        clearTimeout(temporizador);
       }
     };
 
     cargarProductos();
+
+    return () => clearTimeout(temporizador);
   }, []);
 
   // =========================================
@@ -67,9 +83,14 @@ function Productos() {
 
   if (cargando) {
     return (
-      <div className="pagina productos">
-        <div className="estado-cargando">Cargando catálogo de productos...</div>
-      </div>
+      <EstadoCargando
+        mensaje={
+          importandoPrimeraVez
+            ? "Importando el catálogo desde Excel por primera vez, esto puede tardar unos segundos..."
+            : "Cargando catálogo de productos..."
+        }
+        claseAdicional="productos"
+      />
     );
   }
 
@@ -78,11 +99,7 @@ function Productos() {
   // =========================================
 
   if (error) {
-    return (
-      <div className="pagina productos">
-        <div className="mensaje-error">{error}</div>
-      </div>
-    );
+    return <MensajeError mensaje={error} claseAdicional="productos" />;
   }
 
   return (

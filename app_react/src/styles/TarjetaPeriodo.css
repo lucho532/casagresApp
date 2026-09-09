@@ -1,0 +1,63 @@
+/* =========================================
+   TARJETA DE PERIODO
+   Indica de qué mes son los datos mostrados
+   en la pantalla. Se usa en varias páginas.
+========================================= */
+
+.tarjeta-periodo {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 20px;
+  background: linear-gradient(160deg, #ffffff, #faf6f3);
+  border-top: 3px solid var(--casagres-principal);
+  border-right: 1px solid var(--borde);
+  border-bottom: 1px solid var(--borde);
+  border-left: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow: var(--sombra-suave);
+  white-space: nowrap;
+}
+
+.tarjeta-periodo-icono {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 19px;
+  background: #e7efe3;
+  color: var(--casagres-principal);
+}
+
+.tarjeta-periodo span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--texto-secundario);
+}
+
+.tarjeta-periodo strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.15;
+  color: var(--texto-principal);
+  text-transform: capitalize;
+}
+
+.tarjeta-periodo small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--texto-secundario);
+}
+
+@media (max-width: 700px) {
+  .tarjeta-periodo {
+    width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+  }
+}

@@ -60,12 +60,12 @@ api.interceptors.response.use(
    ========================================================= */
 
 export const obtenerDashboard = async () => {
-  const respuesta = await api.get("/Ventas/dashboard");
+  const respuesta = await api.get("/Pronostico/dashboard");
   return respuesta.data;
 };
 
 export const obtenerHistorico = async (referencia) => {
-  const respuesta = await api.get("/Ventas/historico", {
+  const respuesta = await api.get("/Pronostico/historico", {
     params: {
       referencia,
     },
@@ -76,11 +76,11 @@ export const obtenerHistorico = async (referencia) => {
 
 
 /* =========================================================
-   PIPELINE
+   ACTUALIZACIÓN
    ========================================================= */
 
 export const actualizarDatos = async (horizonte = 1) => {
-  const respuesta = await api.post("/Pipeline/actualizar", null, {
+  const respuesta = await api.post("/Actualizacion/actualizar", null, {
     params: {
       horizonte,
     },
@@ -90,7 +90,7 @@ export const actualizarDatos = async (horizonte = 1) => {
 };
 
 export const obtenerEstadoActualizacion = async () => {
-  const respuesta = await api.get("/Pipeline/estado");
+  const respuesta = await api.get("/Actualizacion/estado");
   return respuesta.data;
 };
 

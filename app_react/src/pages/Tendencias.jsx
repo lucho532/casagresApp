@@ -10,87 +10,26 @@ import {
   Legend,
 } from "recharts";
 
-import { obtenerDashboard, obtenerHistorico } from "../services/api";
+import { obtenerHistorico } from "../services/api";
+import { useDashboard } from "../hooks/useDashboard";
+import SelectorProducto from "../components/SelectorProducto";
+import TarjetaPeriodo from "../components/TarjetaPeriodo";
+import EstadoCargando from "../components/EstadoCargando";
+import MensajeError from "../components/MensajeError";
 import "../styles/Tendencias.css";
-import "../styles/SelectorProducto.css";
 
 function Tendencias({ mesSeleccionado }) {
-  const [dashboard, setDashboard] = useState(null);
+  const {
+    dashboard,
+    cargando,
+    error,
+  } = useDashboard("No fue posible obtener la información de ventas.");
+
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
   const [historico, setHistorico] = useState([]);
 
-  const [cargando, setCargando] = useState(true);
   const [cargandoHistorico, setCargandoHistorico] = useState(false);
-
-  const [error, setError] = useState("");
   const [errorHistorico, setErrorHistorico] = useState("");
-
-  // =========================================
-  // BÚSQUEDA DE PRODUCTOS
-  // =========================================
-
-  const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
-  const [busquedaProducto, setBusquedaProducto] = useState("");
-
-  // =========================================
-  // OBTENER DASHBOARD
-  // =========================================
-
-  useEffect(() => {
-    const cargarDashboard = async () => {
-      try {
-        setCargando(true);
-        setError("");
-
-        const datos = await obtenerDashboard();
-
-        setDashboard(datos);
-
-        const meses = datos?.meses || [];
-
-        if (meses.length > 0 && meses[0].productos?.length > 0) {
-          setReferenciaSeleccionada(meses[0].productos[0].referencia);
-        }
-      } catch (err) {
-        console.error(err);
-
-        setError("No fue posible obtener la información de ventas.");
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    cargarDashboard();
-  }, []);
-
-  // =========================================
-  // OBTENER HISTÓRICO
-  // =========================================
-
-  useEffect(() => {
-    if (!referenciaSeleccionada) {
-      return;
-    }
-
-    const cargarHistorico = async () => {
-      try {
-        setCargandoHistorico(true);
-        setErrorHistorico("");
-
-        const datos = await obtenerHistorico(referenciaSeleccionada);
-
-        setHistorico(datos.historico || []);
-      } catch (err) {
-        console.error(err);
-
-        setErrorHistorico("No fue posible obtener el histórico del producto.");
-      } finally {
-        setCargandoHistorico(false);
-      }
-    };
-
-    cargarHistorico();
-  }, [referenciaSeleccionada]);
 
   // =========================================
   // PRODUCTOS
@@ -106,28 +45,44 @@ function Tendencias({ mesSeleccionado }) {
     return primerMes?.productos || [];
   }, [dashboard]);
 
+  // Si el usuario aún no ha elegido nada, se usa el primer producto disponible.
+  const referenciaEfectiva = referenciaSeleccionada || productos[0]?.referencia || "";
+
   // =========================================
-  // PRODUCTOS FILTRADOS
+  // OBTENER HISTÓRICO
   // =========================================
 
-  const productosFiltrados = useMemo(() => {
-    const texto = busquedaProducto.trim().toLowerCase();
-
-    if (!texto) {
-      return productos;
+  useEffect(() => {
+    if (!referenciaEfectiva) {
+      return;
     }
 
-    return productos.filter((producto) =>
-      producto.referencia.toString().toLowerCase().includes(texto),
-    );
-  }, [productos, busquedaProducto]);
+    const cargarHistorico = async () => {
+      try {
+        setCargandoHistorico(true);
+        setErrorHistorico("");
+
+        const datos = await obtenerHistorico(referenciaEfectiva);
+
+        setHistorico(datos.historico || []);
+      } catch (err) {
+        console.error(err);
+
+        setErrorHistorico("No fue posible obtener el histórico del producto.");
+      } finally {
+        setCargandoHistorico(false);
+      }
+    };
+
+    cargarHistorico();
+  }, [referenciaEfectiva]);
 
   // =========================================
   // PRODUCTO SELECCIONADO
   // =========================================
 
   const productoSeleccionado = productos.find(
-    (producto) => producto.referencia === referenciaSeleccionada,
+    (producto) => producto.referencia === referenciaEfectiva,
   );
 
   // =========================================
@@ -135,7 +90,7 @@ function Tendencias({ mesSeleccionado }) {
   // =========================================
 
   const pronosticosProducto = useMemo(() => {
-    if (!dashboard?.meses || !referenciaSeleccionada) {
+    if (!dashboard?.meses || !referenciaEfectiva) {
       return [];
     }
 
@@ -149,7 +104,7 @@ function Tendencias({ mesSeleccionado }) {
       })
       .map((mes) => {
         const producto = mes.productos?.find(
-          (item) => item.referencia === referenciaSeleccionada,
+          (item) => item.referencia === referenciaEfectiva,
         );
 
         if (!producto) {
@@ -162,7 +117,7 @@ function Tendencias({ mesSeleccionado }) {
         };
       })
       .filter(Boolean);
-  }, [dashboard, referenciaSeleccionada, mesSeleccionado]);
+  }, [dashboard, referenciaEfectiva, mesSeleccionado]);
 
   // =========================================
   // ÚLTIMO MES REAL
@@ -261,11 +216,7 @@ function Tendencias({ mesSeleccionado }) {
   // =========================================
 
   if (cargando) {
-    return (
-      <div className="pagina">
-        <div className="estado-cargando">Cargando tendencias de ventas...</div>
-      </div>
-    );
+    return <EstadoCargando mensaje="Cargando tendencias de ventas..." />;
   }
 
   // =========================================
@@ -273,11 +224,7 @@ function Tendencias({ mesSeleccionado }) {
   // =========================================
 
   if (error) {
-    return (
-      <div className="pagina">
-        <div className="mensaje-error">{error}</div>
-      </div>
-    );
+    return <MensajeError mensaje={error} />;
   }
 
   return (
@@ -296,76 +243,11 @@ function Tendencias({ mesSeleccionado }) {
           </p>
         </div>
 
-        {/* =================================
-            SELECTOR DE PRODUCTO
-        ================================== */}
-
-        <div className="selector-producto">
-          <label>Producto</label>
-
-          <div className="selector-producto-control">
-            <select
-              value={referenciaSeleccionada}
-              onChange={(e) => setReferenciaSeleccionada(e.target.value)}
-            >
-              {productosFiltrados.map((producto) => (
-                <option key={producto.referencia} value={producto.referencia}>
-                  {producto.referencia}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              className={`boton-busqueda ${mostrarBusqueda ? "activo" : ""}`}
-              onClick={() => {
-                setMostrarBusqueda(!mostrarBusqueda);
-
-                if (mostrarBusqueda) {
-                  setBusquedaProducto("");
-                }
-              }}
-              title="Buscar referencia"
-            >
-              🔍
-            </button>
-          </div>
-
-          {/* =================================
-              CAMPO DE BÚSQUEDA
-          ================================== */}
-
-          {mostrarBusqueda && (
-            <div className="campo-busqueda-producto">
-              <input
-                type="text"
-                placeholder="Buscar referencia..."
-                value={busquedaProducto}
-                onChange={(e) => setBusquedaProducto(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (productosFiltrados.length > 0) {
-                      setReferenciaSeleccionada(
-                        productosFiltrados[0].referencia,
-                      );
-
-                      setBusquedaProducto("");
-                      setMostrarBusqueda(false);
-                    }
-                  }
-                }}
-                autoFocus
-              />
-
-              {busquedaProducto && (
-                <span className="resultado-busqueda">
-                  {productosFiltrados.length} resultado
-                  {productosFiltrados.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        <TarjetaPeriodo
+          mes={mesSeleccionado}
+          etiqueta="Horizonte mostrado"
+          descripcion="Hasta este mes se muestran predicciones"
+        />
       </div>
 
       {/* =====================================
@@ -401,6 +283,18 @@ function Tendencias({ mesSeleccionado }) {
           </div>
         </div>
       )}
+
+      {/* =====================================
+          SELECTOR DE PRODUCTO
+      ====================================== */}
+
+      <div className="selector-producto-seccion">
+        <SelectorProducto
+          productos={productos}
+          valorSeleccionado={referenciaEfectiva}
+          onSeleccionar={setReferenciaSeleccionada}
+        />
+      </div>
 
       {/* =====================================
           GRÁFICA

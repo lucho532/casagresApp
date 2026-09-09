@@ -1,4 +1,5 @@
 using Casagres.API.Data;
+using Casagres.API.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 
@@ -8,6 +9,59 @@ public class ExcelExportService
 {
     private readonly CasagresDbContext _context;
     private readonly IConfiguration _configuration;
+
+    // Cada columna del CSV se define junto a su selector, para que el
+    // encabezado y el dato correspondiente nunca puedan desalinearse.
+    private static readonly (string Encabezado, Func<Venta, object?> Valor)[] Columnas =
+    {
+        ("referencia_producto", v => v.referencia_producto),
+        ("descripcion_producto", v => v.descripcion_producto),
+        ("zona_vendedor", v => v.zona_vendedor),
+        ("nombre_zona_vendedor", v => v.nombre_zona_vendedor),
+        ("tercero", v => v.tercero),
+        ("nombre_tercero", v => v.nombre_tercero),
+        ("calificacion_tercero", v => v.calificacion_tercero),
+        ("tipo_tercero", v => v.tipo_tercero),
+        ("lista_de_precio", v => v.lista_de_precio),
+        ("cod_ciudad", v => v.cod_ciudad),
+        ("sucursal_tercero", v => v.sucursal_tercero),
+        ("periodo", v => v.periodo),
+        ("valor_neto", v => v.valor_neto),
+        ("cantidad", v => v.cantidad),
+        ("cantidad_devolucion", v => v.cantidad_devolucion),
+        ("valor_venta", v => v.valor_venta),
+        ("cantidad_notas", v => v.cantidad_notas),
+        ("valor_notas", v => v.valor_notas),
+        ("tipo", v => v.tipo),
+        ("codigo_zona", v => v.codigo_zona),
+        ("canal", v => v.canal),
+        ("lista_de_precios", v => v.lista_de_precios),
+        ("departamento", v => v.departamento),
+        ("marca", v => v.marca),
+        ("linea_inventarios", v => v.linea_inventarios),
+        ("descripcion_linea_inventarios", v => v.descripcion_linea_inventarios),
+        ("grupo_inventarios", v => v.grupo_inventarios),
+        ("descripcion_grupo_inventarios", v => v.descripcion_grupo_inventarios),
+        ("cod_producto", v => v.cod_producto),
+        ("descripcion", v => v.descripcion),
+        ("clase_producto", v => v.clase_producto),
+        ("peso", v => v.peso),
+        ("toneladas", v => v.toneladas),
+        ("cantidad_neta", v => v.cantidad_neta),
+        ("valor_venta_neta", v => v.valor_venta_neta),
+        ("valor_presupuesto", v => v.valor_presupuesto),
+        ("dif", v => v.dif),
+        ("precio", v => v.precio),
+        ("valor_unitario", v => v.valor_unitario),
+        ("diferencia", v => v.diferencia),
+        ("precios_zonas", v => v.precios_zonas),
+        ("precios_unicos", v => v.precios_unicos),
+        ("periodo_precios", v => v.periodo_precios),
+        ("meta_diaria_de_venta", v => v.meta_diaria_de_venta),
+        ("cumpli_proyect_$", v => v.cumpli_proyect),
+        ("actual", v => v.actual),
+        ("zona", v => v.zona)
+    };
 
     public ExcelExportService(
         CasagresDbContext context,
@@ -19,31 +73,54 @@ public class ExcelExportService
 
     public async Task<List<string>> GenerarCsvVentas()
     {
-        // 1. Obtener todas las ventas desde SQL Server
-        var ventas = await _context.Ventas
-            .AsNoTracking()
-            .ToListAsync();
+        var ventas = await ObtenerVentasAsync();
+        var carpetaDatos = ObtenerCarpetaDestino();
+        var años = ObtenerAniosDisponibles(ventas);
+
+        var archivosGenerados = new List<string>();
+
+        foreach (var año in años)
+        {
+            var ventasDelAño = ventas
+                .Where(v => v.periodo.HasValue && v.periodo.Value / 100 == año)
+                .ToList();
+
+            archivosGenerados.Add(
+                EscribirCsvDelAño(carpetaDatos, año, ventasDelAño));
+        }
+
+        return archivosGenerados;
+    }
+
+    private async Task<List<Venta>> ObtenerVentasAsync()
+    {
+        var ventas = await _context.Ventas.AsNoTracking().ToListAsync();
 
         if (ventas.Count == 0)
         {
-            throw new InvalidOperationException(
-                "No existen ventas en la base de datos."
-            );
+            throw new InvalidOperationException("No existen ventas en la base de datos.");
         }
 
-        // 2. Obtener la carpeta donde se guardarán los CSV
+        return ventas;
+    }
+
+    private string ObtenerCarpetaDestino()
+    {
         var carpetaDatos = _configuration["Rutas:CarpetaDatos"];
 
         if (string.IsNullOrWhiteSpace(carpetaDatos))
         {
             throw new InvalidOperationException(
-                "No se configuró Rutas:CarpetaDatos en appsettings.json."
-            );
+                "No se configuró Rutas:CarpetaDatos en appsettings.json.");
         }
 
         Directory.CreateDirectory(carpetaDatos);
 
-        // 3. Obtener los años existentes a partir de 'periodo'
+        return carpetaDatos;
+    }
+
+    private static List<int> ObtenerAniosDisponibles(List<Venta> ventas)
+    {
         var años = ventas
             .Where(v => v.periodo.HasValue)
             .Select(v => v.periodo!.Value / 100)
@@ -54,172 +131,32 @@ public class ExcelExportService
         if (años.Count == 0)
         {
             throw new InvalidOperationException(
-                "No se encontraron períodos válidos para determinar los años."
-            );
+                "No se encontraron períodos válidos para determinar los años.");
         }
 
-        var archivosGenerados = new List<string>();
+        return años;
+    }
 
-        // 4. Encabezados del CSV
-        string[] encabezados =
+    private static string EscribirCsvDelAño(string carpetaDatos, int año, List<Venta> ventasDelAño)
+    {
+        Console.WriteLine($"Generando CSV del año {año}: {ventasDelAño.Count} registros...");
+
+        var rutaCsv = Path.Combine(carpetaDatos, $"Ventas_Casagres_{año}.csv");
+
+        // UTF-8 con BOM para que Excel reconozca correctamente
+        // caracteres como ñ, á, é, etc.
+        using var writer = new StreamWriter(rutaCsv, false, new UTF8Encoding(true));
+
+        writer.WriteLine(string.Join(";", Columnas.Select(c => EscaparCsv(c.Encabezado))));
+
+        foreach (var venta in ventasDelAño)
         {
-            "referencia_producto",
-            "descripcion_producto",
-            "zona_vendedor",
-            "nombre_zona_vendedor",
-            "tercero",
-            "nombre_tercero",
-            "calificacion_tercero",
-            "tipo_tercero",
-            "lista_de_precio",
-            "cod_ciudad",
-            "sucursal_tercero",
-            "periodo",
-            "valor_neto",
-            "cantidad",
-            "cantidad_devolucion",
-            "valor_venta",
-            "cantidad_notas",
-            "valor_notas",
-            "tipo",
-            "codigo_zona",
-            "canal",
-            "lista_de_precios",
-            "departamento",
-            "marca",
-            "linea_inventarios",
-            "descripcion_linea_inventarios",
-            "grupo_inventarios",
-            "descripcion_grupo_inventarios",
-            "cod_producto",
-            "descripcion",
-            "clase_producto",
-            "peso",
-            "toneladas",
-            "cantidad_neta",
-            "valor_venta_neta",
-            "valor_presupuesto",
-            "dif",
-            "precio",
-            "valor_unitario",
-            "diferencia",
-            "precios_zonas",
-            "precios_unicos",
-            "periodo_precios",
-            "meta_diaria_de_venta",
-            "cumpli_proyect_$",
-            "actual",
-            "zona"
-        };
-
-        // 5. Generar un CSV por cada año
-        foreach (var año in años)
-        {
-            var ventasDelAño = ventas
-                .Where(v =>
-                    v.periodo.HasValue &&
-                    v.periodo.Value / 100 == año
-                )
-                .ToList();
-
-            Console.WriteLine(
-                $"Generando CSV del año {año}: {ventasDelAño.Count} registros..."
-            );
-
-            var nombreArchivo =
-                $"Ventas_Casagres_{año}.csv";
-
-            var rutaCsv = Path.Combine(
-                carpetaDatos,
-                nombreArchivo
-            );
-
-            // UTF-8 con BOM para que Excel reconozca correctamente
-            // caracteres como ñ, á, é, etc.
-            using var writer = new StreamWriter(
-                rutaCsv,
-                false,
-                new UTF8Encoding(true)
-            );
-
-            // 6. Escribir encabezados
-            writer.WriteLine(
-                string.Join(
-                    ";",
-                    encabezados.Select(EscaparCsv)
-                )
-            );
-
-            // 7. Escribir datos
-            foreach (var v in ventasDelAño)
-            {
-                object?[] fila =
-                {
-                    v.referencia_producto,
-                    v.descripcion_producto,
-                    v.zona_vendedor,
-                    v.nombre_zona_vendedor,
-                    v.tercero,
-                    v.nombre_tercero,
-                    v.calificacion_tercero,
-                    v.tipo_tercero,
-                    v.lista_de_precio,
-                    v.cod_ciudad,
-                    v.sucursal_tercero,
-                    v.periodo,
-                    v.valor_neto,
-                    v.cantidad,
-                    v.cantidad_devolucion,
-                    v.valor_venta,
-                    v.cantidad_notas,
-                    v.valor_notas,
-                    v.tipo,
-                    v.codigo_zona,
-                    v.canal,
-                    v.lista_de_precios,
-                    v.departamento,
-                    v.marca,
-                    v.linea_inventarios,
-                    v.descripcion_linea_inventarios,
-                    v.grupo_inventarios,
-                    v.descripcion_grupo_inventarios,
-                    v.cod_producto,
-                    v.descripcion,
-                    v.clase_producto,
-                    v.peso,
-                    v.toneladas,
-                    v.cantidad_neta,
-                    v.valor_venta_neta,
-                    v.valor_presupuesto,
-                    v.dif,
-                    v.precio,
-                    v.valor_unitario,
-                    v.diferencia,
-                    v.precios_zonas,
-                    v.precios_unicos,
-                    v.periodo_precios,
-                    v.meta_diaria_de_venta,
-                    v.cumpli_proyect,
-                    v.actual,
-                    v.zona
-                };
-
-                writer.WriteLine(
-                    string.Join(
-                        ";",
-                        fila.Select(EscaparCsv)
-                    )
-                );
-            }
-
-            archivosGenerados.Add(rutaCsv);
-
-            Console.WriteLine(
-                $"✓ CSV generado: {rutaCsv}"
-            );
+            writer.WriteLine(string.Join(";", Columnas.Select(c => EscaparCsv(c.Valor(venta)))));
         }
 
-        return archivosGenerados;
+        Console.WriteLine($"✓ CSV generado: {rutaCsv}");
+
+        return rutaCsv;
     }
 
     // Escapa correctamente los valores para CSV
@@ -232,12 +169,7 @@ public class ExcelExportService
 
         // Si contiene ;, comillas o saltos de línea,
         // lo encerramos entre comillas.
-        if (
-            texto.Contains(";") ||
-            texto.Contains("\"") ||
-            texto.Contains("\n") ||
-            texto.Contains("\r")
-        )
+        if (texto.Contains(";") || texto.Contains("\"") || texto.Contains("\n") || texto.Contains("\r"))
         {
             texto = texto.Replace("\"", "\"\"");
             return $"\"{texto}\"";

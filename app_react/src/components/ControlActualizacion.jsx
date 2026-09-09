@@ -31,8 +31,6 @@ function ControlActualizacion({
     try {
       const estado = await obtenerEstadoActualizacion();
 
-      console.log("Estado del pipeline:", estado);
-
       setEstadoActualizacion(estado);
 
       if (estado.ultimaActualizacion) {
@@ -60,8 +58,6 @@ function ControlActualizacion({
       if (actualizacionSolicitadaRef.current) {
         actualizacionSolicitadaRef.current = false;
 
-        console.log("Actualización completada. Recargando dashboard...");
-
         onActualizacionCompletada?.();
       }
     } catch (error) {
@@ -86,8 +82,6 @@ function ControlActualizacion({
       return;
     }
 
-    console.log("Iniciando actualización...");
-
     solicitudEnCursoRef.current = true;
     actualizacionSolicitadaRef.current = true;
 
@@ -104,8 +98,6 @@ function ControlActualizacion({
     try {
       await actualizarDatos(horizonte);
 
-      console.log("Solicitud de actualización completada por el backend.");
-
       solicitudEnCursoRef.current = false;
 
       // El backend espera a que termine todo el pipeline antes
@@ -120,8 +112,6 @@ function ControlActualizacion({
 
       // Ya hay otra actualización ejecutándose
       if (error.response?.status === 409) {
-        console.log("Ya existe una actualización en curso.");
-
         setActualizando(true);
 
         setEstadoActualizacion({
@@ -160,8 +150,6 @@ function ControlActualizacion({
         if (!componenteActivo) {
           return;
         }
-
-        console.log("Estado inicial del pipeline:", estado);
 
         setEstadoActualizacion(estado);
 

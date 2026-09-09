@@ -1,42 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { obtenerDashboard } from "../services/api";
+import { useMemo, useState } from "react";
+import { useDashboard } from "../hooks/useDashboard";
+import { formatearNumero, formatearMes } from "../utils/formato";
+import SelectorProducto from "../components/SelectorProducto";
+import TarjetaPeriodo from "../components/TarjetaPeriodo";
+import EstadoCargando from "../components/EstadoCargando";
+import MensajeError from "../components/MensajeError";
 import "../styles/DemandaFutura.css";
-import "../styles/SelectorProducto.css";
 
 function DemandaFutura({ mesSeleccionado }) {
-  const [dashboard, setDashboard] = useState(null);
+  const {
+    dashboard,
+    cargando,
+    error,
+  } = useDashboard("No fue posible cargar las estimaciones de demanda.");
+
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
-
-  // Búsqueda de productos
-  const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
-  const [busquedaProducto, setBusquedaProducto] = useState("");
-
-  // =========================================
-  // CARGAR DASHBOARD
-  // =========================================
-
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        setCargando(true);
-        setError("");
-
-        const datos = await obtenerDashboard();
-
-        setDashboard(datos);
-      } catch (err) {
-        console.error(err);
-
-        setError("No fue posible cargar las estimaciones de demanda.");
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    cargarDatos();
-  }, []);
 
   // =========================================
   // MES SELECCIONADO
@@ -64,39 +42,14 @@ function DemandaFutura({ mesSeleccionado }) {
       .sort((a, b) => b.pronostico - a.pronostico);
   }, [dashboardMesSeleccionado]);
 
-  // =========================================
-  // PRODUCTOS FILTRADOS POR BÚSQUEDA
-  // =========================================
-
-  const productosFiltrados = useMemo(() => {
-    const texto = busquedaProducto.trim().toLowerCase();
-
-    if (!texto) {
-      return productos;
-    }
-
-    return productos.filter((producto) =>
-      producto.referencia.toString().toLowerCase().includes(texto),
-    );
-  }, [productos, busquedaProducto]);
-
-  // =========================================
-  // ASEGURAR PRODUCTO SELECCIONADO
-  // =========================================
-
-  useEffect(() => {
-    if (productos.length === 0) {
-      setReferenciaSeleccionada("");
-      return;
-    }
-
-    const productoExiste = productos.some(
+  // Si la selección actual no existe en el mes vigente (o aún no hay
+  // ninguna), se usa el primer producto disponible.
+  const referenciaEfectiva = useMemo(() => {
+    const existe = productos.some(
       (producto) => producto.referencia === referenciaSeleccionada,
     );
 
-    if (!productoExiste) {
-      setReferenciaSeleccionada(productos[0].referencia);
-    }
+    return existe ? referenciaSeleccionada : productos[0]?.referencia || "";
   }, [productos, referenciaSeleccionada]);
 
   // =========================================
@@ -105,38 +58,18 @@ function DemandaFutura({ mesSeleccionado }) {
 
   const productoSeleccionado = useMemo(() => {
     return productos.find(
-      (producto) => producto.referencia === referenciaSeleccionada,
+      (producto) => producto.referencia === referenciaEfectiva,
     );
-  }, [productos, referenciaSeleccionada]);
-
-  // =========================================
-  // FORMATEAR NÚMEROS
-  // =========================================
-
-  const formatearNumero = (numero) => {
-    if (numero == null) {
-      return "-";
-    }
-
-    return Math.round(numero).toLocaleString("es-CO");
-  };
+  }, [productos, referenciaEfectiva]);
 
   // =========================================
   // MES DEL PRONÓSTICO
   // =========================================
 
-  const mesPronostico = useMemo(() => {
-    if (!mesSeleccionado) {
-      return "-";
-    }
-
-    const fecha = new Date(`${mesSeleccionado}T00:00:00`);
-
-    return fecha.toLocaleDateString("es-CO", {
-      month: "long",
-      year: "numeric",
-    });
-  }, [mesSeleccionado]);
+  const mesPronostico = useMemo(
+    () => formatearMes(mesSeleccionado),
+    [mesSeleccionado],
+  );
 
   // =========================================
   // NIVEL DE CONFIANZA
@@ -155,13 +88,7 @@ function DemandaFutura({ mesSeleccionado }) {
   // =========================================
 
   if (cargando) {
-    return (
-      <div className="pagina">
-        <div className="estado-cargando">
-          Cargando estimaciones de demanda...
-        </div>
-      </div>
-    );
+    return <EstadoCargando mensaje="Cargando estimaciones de demanda..." />;
   }
 
   // =========================================
@@ -169,11 +96,7 @@ function DemandaFutura({ mesSeleccionado }) {
   // =========================================
 
   if (error) {
-    return (
-      <div className="pagina">
-        <div className="mensaje-error">{error}</div>
-      </div>
-    );
+    return <MensajeError mensaje={error} />;
   }
 
   // =========================================
@@ -193,80 +116,11 @@ function DemandaFutura({ mesSeleccionado }) {
           <p>Estimación de demanda para los próximos periodos.</p>
         </div>
 
-        {/* =================================
-            SELECTOR DE PRODUCTO
-        ================================== */}
-
-        <div className="selector-producto">
-          <label>Producto</label>
-
-          <div className="selector-producto-control">
-            {/* DESPLEGABLE */}
-
-            <select
-              value={referenciaSeleccionada}
-              onChange={(e) => setReferenciaSeleccionada(e.target.value)}
-            >
-              {productosFiltrados.map((producto) => (
-                <option key={producto.referencia} value={producto.referencia}>
-                  {producto.referencia}
-                </option>
-              ))}
-            </select>
-
-            {/* BOTÓN DE BÚSQUEDA */}
-
-            <button
-              type="button"
-              className={`boton-busqueda ${mostrarBusqueda ? "activo" : ""}`}
-              onClick={() => {
-                setMostrarBusqueda(!mostrarBusqueda);
-
-                if (mostrarBusqueda) {
-                  setBusquedaProducto("");
-                }
-              }}
-              title="Buscar referencia"
-            >
-              🔍
-            </button>
-          </div>
-
-          {/* =================================
-              CAMPO DE BÚSQUEDA
-          ================================== */}
-
-          {mostrarBusqueda && (
-            <div className="campo-busqueda-producto">
-              <input
-                type="text"
-                placeholder="Buscar referencia..."
-                value={busquedaProducto}
-                onChange={(e) => setBusquedaProducto(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (productosFiltrados.length > 0) {
-                      setReferenciaSeleccionada(
-                        productosFiltrados[0].referencia,
-                      );
-
-                      setBusquedaProducto("");
-                      setMostrarBusqueda(false);
-                    }
-                  }
-                }}
-                autoFocus
-              />
-
-              {busquedaProducto && (
-                <span className="resultado-busqueda">
-                  {productosFiltrados.length} resultado
-                  {productosFiltrados.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        <TarjetaPeriodo
+          mes={mesSeleccionado}
+          etiqueta="Periodo proyectado"
+          descripcion="Mes al que corresponde la demanda mostrada"
+        />
       </div>
 
       {/* =====================================
@@ -341,6 +195,18 @@ function DemandaFutura({ mesSeleccionado }) {
                 <small>Nivel de confianza</small>
               </div>
             </div>
+          </div>
+
+          {/* =================================
+              SELECTOR DE PRODUCTO
+          ================================== */}
+
+          <div className="selector-producto-seccion">
+            <SelectorProducto
+              productos={productos}
+              valorSeleccionado={referenciaEfectiva}
+              onSeleccionar={setReferenciaSeleccionada}
+            />
           </div>
 
           {/* =================================

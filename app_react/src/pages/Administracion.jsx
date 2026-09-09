@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { obtenerUsuarios, cambiarRol, cambiarEstado } from "../services/api";
+import EstadoCargando from "../components/EstadoCargando";
+import MensajeError from "../components/MensajeError";
 import "../styles/Administracion.css";
 
 function Administracion() {
@@ -10,29 +12,29 @@ function Administracion() {
   const [cambiandoEstado, setCambiandoEstado] = useState(null);
 
   useEffect(() => {
+    const cargarUsuarios = async () => {
+      try {
+        setCargando(true);
+        setError("");
+
+        const datos = await obtenerUsuarios();
+
+        setUsuarios(datos);
+      } catch (err) {
+        console.error("Error al obtener usuarios:", err);
+
+        if (err.response?.status === 403) {
+          setError("No tienes permisos para acceder a esta sección.");
+        } else {
+          setError("No fue posible cargar los usuarios.");
+        }
+      } finally {
+        setCargando(false);
+      }
+    };
+
     cargarUsuarios();
   }, []);
-
-  const cargarUsuarios = async () => {
-    try {
-      setCargando(true);
-      setError("");
-
-      const datos = await obtenerUsuarios();
-
-      setUsuarios(datos);
-    } catch (err) {
-      console.error("Error al obtener usuarios:", err);
-
-      if (err.response?.status === 403) {
-        setError("No tienes permisos para acceder a esta sección.");
-      } else {
-        setError("No fue posible cargar los usuarios.");
-      }
-    } finally {
-      setCargando(false);
-    }
-  };
 
   const manejarCambioRol = async (usuario) => {
     const nuevoRol = usuario.rol === "admin" ? "usuario" : "admin";
@@ -112,38 +114,20 @@ function Administracion() {
   };
 
   if (cargando) {
-    return (
-      <div className="administracion">
-        <div className="administracion-header">
-          <h1>Administración</h1>
-          <p>Gestión de usuarios de la plataforma.</p>
-        </div>
-
-        <div className="administracion-card">
-          <div className="administracion-mensaje">Cargando usuarios...</div>
-        </div>
-      </div>
-    );
+    return <EstadoCargando mensaje="Cargando usuarios..." />;
   }
 
   if (error) {
-    return (
-      <div className="administracion">
-        <div className="administracion-header">
-          <h1>Administración</h1>
-          <p>Gestión de usuarios de la plataforma.</p>
-        </div>
-
-        <div className="administracion-error">{error}</div>
-      </div>
-    );
+    return <MensajeError mensaje={error} />;
   }
 
   return (
-    <div className="administracion">
-      <div className="administracion-header">
-        <h1>Administración</h1>
-        <p>Gestión de usuarios de la plataforma.</p>
+    <div className="pagina administracion">
+      <div className="pagina-encabezado">
+        <div>
+          <h2>Administración</h2>
+          <p>Gestión de usuarios de la plataforma.</p>
+        </div>
       </div>
 
       <div className="administracion-card">

@@ -1,34 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { obtenerDashboard } from "../services/api";
+import { useMemo } from "react";
+import { useDashboard } from "../hooks/useDashboard";
+import { formatearCantidad } from "../utils/formato";
+import EstadoCargando from "../components/EstadoCargando";
+import MensajeError from "../components/MensajeError";
+import TarjetaPeriodo from "../components/TarjetaPeriodo";
 import "../styles/Decisiones.css";
 
 function Decisiones({ mesSeleccionado }) {
-  const [dashboard, setDashboard] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        setCargando(true);
-        setError("");
-
-        const datos = await obtenerDashboard();
-
-        setDashboard(datos);
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          "No fue posible cargar la información para la toma de decisiones.",
-        );
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    cargarDatos();
-  }, []);
+  const { dashboard, cargando, error } = useDashboard(
+    "No fue posible cargar la información para la toma de decisiones.",
+  );
 
   // =========================================
   // PRODUCTOS
@@ -93,25 +74,11 @@ function Decisiones({ mesSeleccionado }) {
   const mayorDemanda = productosOrdenados.slice(0, 5);
 
   // =========================================
-  // FORMATO
-  // =========================================
-
-  const formatearNumero = (numero) => {
-    return Math.round(Number(numero || 0)).toLocaleString("es-CO");
-  };
-
-  // =========================================
   // CARGANDO
   // =========================================
 
   if (cargando) {
-    return (
-      <div className="pagina">
-        <div className="estado-cargando">
-          Analizando información para decisiones...
-        </div>
-      </div>
-    );
+    return <EstadoCargando mensaje="Analizando información para decisiones..." />;
   }
 
   // =========================================
@@ -119,11 +86,7 @@ function Decisiones({ mesSeleccionado }) {
   // =========================================
 
   if (error) {
-    return (
-      <div className="pagina">
-        <div className="mensaje-error">{error}</div>
-      </div>
-    );
+    return <MensajeError mensaje={error} />;
   }
 
   return (
@@ -144,11 +107,11 @@ function Decisiones({ mesSeleccionado }) {
           </p>
         </div>
 
-        <div className="decisiones-periodo">
-          <span>Periodo analizado</span>
-
-          <strong>{mesAnalizado?.mes || "-"}</strong>
-        </div>
+        <TarjetaPeriodo
+          mes={mesAnalizado?.mes}
+          etiqueta="Periodo analizado"
+          descripcion="Mes con datos analizados"
+        />
       </div>
 
       {/* =====================================
@@ -162,7 +125,7 @@ function Decisiones({ mesSeleccionado }) {
           <div>
             <span>Demanda proyectada</span>
 
-            <strong>{formatearNumero(estadisticas.total)}</strong>
+            <strong>{formatearCantidad(estadisticas.total)}</strong>
 
             <small>Unidades totales</small>
           </div>
@@ -229,7 +192,7 @@ function Decisiones({ mesSeleccionado }) {
 
         {mayorDemanda.length > 0 && (
           <div className="decision-recomendacion-valor">
-            <strong>{formatearNumero(mayorDemanda[0].pronostico)}</strong>
+            <strong>{formatearCantidad(mayorDemanda[0].pronostico)}</strong>
 
             <span>unidades proyectadas</span>
           </div>
@@ -301,7 +264,7 @@ function Decisiones({ mesSeleccionado }) {
 
                     <td>
                       <strong className="valor-demanda">
-                        {formatearNumero(producto.pronostico)}
+                        {formatearCantidad(producto.pronostico)}
                       </strong>
 
                       <span className="unidad-tabla">unidades</span>
@@ -311,11 +274,11 @@ function Decisiones({ mesSeleccionado }) {
                       {producto.inferior != null &&
                       producto.superior != null ? (
                         <span className="intervalo-tabla">
-                          {formatearNumero(producto.inferior)}
+                          {formatearCantidad(producto.inferior)}
 
                           {" — "}
 
-                          {formatearNumero(producto.superior)}
+                          {formatearCantidad(producto.superior)}
                         </span>
                       ) : (
                         <span className="sin-intervalo">—</span>
