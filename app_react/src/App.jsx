@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 
 import Login from "./pages/Login";
+import CuentaPendiente from "./pages/CuentaPendiente";
 
 import Inicio from "./pages/Inicio";
 import Tendencias from "./pages/Tendencias";
@@ -12,14 +13,22 @@ import Decisiones from "./pages/Decisiones";
 import PowerBI from "./pages/PowerBI";
 import Productos from "./pages/Productos";
 import Administracion from "./pages/Administracion";
-import { obtenerDashboard } from "./services/api";
+import EstadoCargando from "./components/EstadoCargando";
+import { obtenerDashboard, obtenerPerfil } from "./services/api";
 import { obtenerRol } from "./utils/auth";
 
 import "./App.css";
 
+const ROL_PENDIENTE = "pendiente";
+
+// Mientras la cuenta esté pendiente de aprobación, se vuelve a consultar
+// el perfil con esta frecuencia para detectar el cambio de rol sin que
+// el usuario tenga que recargar la página.
+const INTERVALO_SONDEO_PERFIL_MS = 5000;
+
 function App() {
   const [autenticado, setAutenticado] = useState(
-    !!localStorage.getItem("token"),
+    !!sessionStorage.getItem("token"),
   );
 
   const [paginaActual, setPaginaActual] = useState("inicio");
@@ -27,6 +36,69 @@ function App() {
   const [mesesDisponibles, setMesesDisponibles] = useState([]);
 
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
+
+  // El rol embebido en el JWT queda "congelado" al iniciar sesión y es
+  // válido hasta por 2 horas. El perfil, en cambio, se consulta al
+  // backend y siempre refleja el rol y el estado actuales.
+  const [perfil, setPerfil] = useState(null);
+  const [cargandoPerfil, setCargandoPerfil] = useState(true);
+
+  useEffect(() => {
+    if (!autenticado) {
+      setPerfil(null);
+      setCargandoPerfil(false);
+      return;
+    }
+
+    let activo = true;
+
+    const cargarPerfil = async () => {
+      try {
+        const datos = await obtenerPerfil();
+
+        if (activo) {
+          setPerfil(datos);
+        }
+      } catch (error) {
+        console.error("No fue posible obtener el perfil:", error);
+      } finally {
+        if (activo) {
+          setCargandoPerfil(false);
+        }
+      }
+    };
+
+    cargarPerfil();
+
+    return () => {
+      activo = false;
+    };
+  }, [autenticado]);
+
+  useEffect(() => {
+    if (perfil?.rol !== ROL_PENDIENTE) {
+      return;
+    }
+
+    let activo = true;
+
+    const intervalo = setInterval(async () => {
+      try {
+        const datos = await obtenerPerfil();
+
+        if (activo) {
+          setPerfil(datos);
+        }
+      } catch (error) {
+        console.error("No fue posible actualizar el perfil:", error);
+      }
+    }, INTERVALO_SONDEO_PERFIL_MS);
+
+    return () => {
+      activo = false;
+      clearInterval(intervalo);
+    };
+  }, [perfil?.rol]);
 
   useEffect(() => {
     const cargarMeses = async () => {
@@ -45,13 +117,13 @@ function App() {
       }
     };
 
-    if (autenticado) {
+    if (autenticado && perfil?.rol && perfil.rol !== ROL_PENDIENTE) {
       cargarMeses();
     }
-  }, [autenticado]);
+  }, [autenticado, perfil?.rol]);
 
   const cerrarSesion = () => {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     setAutenticado(false);
     setPaginaActual("inicio");
   };
@@ -75,13 +147,31 @@ function App() {
         );
 
       case "tendencias":
-        return <Tendencias mesSeleccionado={mesSeleccionado} />;
+        return (
+          <Tendencias
+            mesSeleccionado={mesSeleccionado}
+            mesesDisponibles={mesesDisponibles}
+            setMesSeleccionado={setMesSeleccionado}
+          />
+        );
 
       case "demanda":
-        return <DemandaFutura mesSeleccionado={mesSeleccionado} />;
+        return (
+          <DemandaFutura
+            mesSeleccionado={mesSeleccionado}
+            mesesDisponibles={mesesDisponibles}
+            setMesSeleccionado={setMesSeleccionado}
+          />
+        );
 
       case "decisiones":
-        return <Decisiones mesSeleccionado={mesSeleccionado} />;
+        return (
+          <Decisiones
+            mesSeleccionado={mesSeleccionado}
+            mesesDisponibles={mesesDisponibles}
+            setMesSeleccionado={setMesSeleccionado}
+          />
+        );
 
       case "powerbi":
         return <PowerBI />;
@@ -103,6 +193,14 @@ function App() {
 
   if (!autenticado) {
     return <Login iniciarSesionCorrectamente={() => setAutenticado(true)} />;
+  }
+
+  if (cargandoPerfil) {
+    return <EstadoCargando mensaje="Cargando tu cuenta..." />;
+  }
+
+  if (perfil?.rol === ROL_PENDIENTE) {
+    return <CuentaPendiente onCerrarSesion={cerrarSesion} />;
   }
 
   return (

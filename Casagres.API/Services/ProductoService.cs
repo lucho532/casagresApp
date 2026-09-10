@@ -2,7 +2,7 @@ using ClosedXML.Excel;
 
 namespace Casagres.API.Services;
 
-public class ProductoService
+public class ProductoService : IProductoService
 {
     private readonly IConfiguration _configuration;
 

@@ -1,4 +1,6 @@
+using Casagres.API.Models;
 using Casagres.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 
@@ -8,13 +10,13 @@ namespace Casagres.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-
+[Authorize(Roles = Roles.ConAccesoADatos)]
 public class ProductosController : ControllerBase
 {
-    private readonly ProductoService _productoService;
+    private readonly IProductoService _productoService;
 
     public ProductosController(
-        ProductoService productoService)
+        IProductoService productoService)
     {
         _productoService = productoService;
     }

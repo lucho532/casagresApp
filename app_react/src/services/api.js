@@ -12,7 +12,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -46,7 +46,7 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       !esLogin
     ) {
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
       window.location.reload();
     }
 
@@ -96,6 +96,31 @@ export const obtenerEstadoActualizacion = async () => {
 
 
 /* =========================================================
+   POWER BI
+   ========================================================= */
+
+export const obtenerTablerosPowerBi = async () => {
+  const respuesta = await api.get("/PowerBi");
+  return respuesta.data;
+};
+
+export const agregarTableroPowerBi = async (nombre, url) => {
+  const respuesta = await api.post("/PowerBi", {
+    nombre,
+    url,
+  });
+
+  return respuesta.data;
+};
+
+export const eliminarTableroPowerBi = async (id) => {
+  const respuesta = await api.delete(`/PowerBi/${id}`);
+
+  return respuesta.data;
+};
+
+
+/* =========================================================
    PRODUCTOS
    ========================================================= */
 
@@ -115,6 +140,11 @@ export const iniciarSesion = async (usuario, password) => {
     password,
   });
 
+  return respuesta.data;
+};
+
+export const obtenerPerfil = async () => {
+  const respuesta = await api.get("/auth/perfil");
   return respuesta.data;
 };
 
@@ -163,6 +193,12 @@ export const cambiarEstado = async (id, activo) => {
   return respuesta.data;
 };
 
+export const eliminarUsuario = async (id) => {
+  const respuesta = await api.delete(`/Administracion/usuarios/${id}`);
+
+  return respuesta.data;
+};
+
 export const iniciarSesionMicrosoft = async (idToken) => {
   const respuesta = await api.post("/auth/microsoft", {
     idToken,
@@ -171,7 +207,46 @@ export const iniciarSesionMicrosoft = async (idToken) => {
   return respuesta.data;
 };
 
+export const iniciarSesionGoogle = async (accessToken) => {
+  const respuesta = await api.post("/auth/google", {
+    accessToken,
+  });
 
+  return respuesta.data;
+};
+
+export const solicitarResetPassword = async (email) => {
+  const respuesta = await api.post("/auth/solicitar-reset", {
+    email,
+  });
+
+  return respuesta.data;
+};
+
+export const restablecerPassword = async (token, nuevaPassword) => {
+  const respuesta = await api.post("/auth/restablecer-password", {
+    token,
+    nuevaPassword,
+  });
+
+  return respuesta.data;
+};
+
+export const verificarEmail = async (token) => {
+  const respuesta = await api.post("/auth/verificar-email", {
+    token,
+  });
+
+  return respuesta.data;
+};
+
+export const reenviarVerificacion = async (email) => {
+  const respuesta = await api.post("/auth/reenviar-verificacion", {
+    email,
+  });
+
+  return respuesta.data;
+};
 
 
 export default api;

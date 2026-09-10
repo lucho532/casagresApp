@@ -7,7 +7,7 @@ import EstadoCargando from "../components/EstadoCargando";
 import MensajeError from "../components/MensajeError";
 import "../styles/DemandaFutura.css";
 
-function DemandaFutura({ mesSeleccionado }) {
+function DemandaFutura({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   const {
     dashboard,
     cargando,
@@ -120,6 +120,8 @@ function DemandaFutura({ mesSeleccionado }) {
           mes={mesSeleccionado}
           etiqueta="Periodo proyectado"
           descripcion="Mes al que corresponde la demanda mostrada"
+          mesesDisponibles={mesesDisponibles}
+          onCambiarMes={setMesSeleccionado}
         />
       </div>
 

@@ -4,16 +4,16 @@ using System.Text.Json;
 
 namespace Casagres.API;
 
-public class GraphService
+public class GraphService : IGraphService
 {
     private const string GraphBaseUrl = "https://graph.microsoft.com/v1.0";
 
-    private readonly MicrosoftAuthService _authService;
+    private readonly IMicrosoftAuthService _authService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
 
     public GraphService(
-        MicrosoftAuthService authService,
+        IMicrosoftAuthService authService,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration)
     {
@@ -244,11 +244,23 @@ public class GraphService
 
         var rutaDestino = Path.Combine(carpetaDestino, nombre);
 
-        await using var streamOrigen = await response.Content.ReadAsStreamAsync();
-        await using var streamDestino = new FileStream(
-            rutaDestino, FileMode.Create, FileAccess.Write, FileShare.None);
+        try
+        {
+            await using var streamOrigen = await response.Content.ReadAsStreamAsync();
+            await using var streamDestino = new FileStream(
+                rutaDestino, FileMode.Create, FileAccess.Write, FileShare.None);
 
-        await streamOrigen.CopyToAsync(streamDestino);
+            await streamOrigen.CopyToAsync(streamDestino);
+        }
+        catch (IOException ex)
+        {
+            // La causa más común: alguien tiene el archivo abierto en Excel
+            // (FileShare.None impide escribirlo mientras tanto).
+            throw new IOException(
+                $"No se pudo guardar '{nombre}': el archivo está abierto en otro programa " +
+                "(por ejemplo, Excel). Ciérralo e inténtalo de nuevo.",
+                ex);
+        }
 
         var informacion = new FileInfo(rutaDestino);
         Console.WriteLine($"Guardado: {informacion.FullName}");

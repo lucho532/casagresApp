@@ -2,19 +2,19 @@ using System.Diagnostics;
 
 namespace Casagres.API.Services;
 
-public class ActualizacionService
+public class ActualizacionService : IActualizacionService
 {
     private readonly IConfiguration _configuration;
-    private readonly GraphService _graphService;
+    private readonly IGraphService _graphService;
     private readonly SemaphoreSlim _semaforo = new(1, 1);
     private readonly ActualizacionEstadoService _estadoService;
-    private readonly ProductoService _productoService;
+    private readonly IProductoService _productoService;
 
     public ActualizacionService(
         IConfiguration configuration,
-        GraphService graphService,
+        IGraphService graphService,
         ActualizacionEstadoService estadoService,
-        ProductoService productoService)
+        IProductoService productoService)
     {
         _configuration = configuration;
         _graphService = graphService;
@@ -57,6 +57,13 @@ public class ActualizacionService
         }
         catch (Exception ex)
         {
+            Console.WriteLine();
+            Console.WriteLine("==========================================");
+            Console.WriteLine("ERROR DURANTE LA ACTUALIZACIÓN");
+            Console.WriteLine("==========================================");
+            Console.WriteLine(ex);
+            Console.WriteLine("==========================================");
+
             _estadoService.Fallar(ex.Message);
             throw;
         }

@@ -6,7 +6,7 @@ import MensajeError from "../components/MensajeError";
 import TarjetaPeriodo from "../components/TarjetaPeriodo";
 import "../styles/Decisiones.css";
 
-function Decisiones({ mesSeleccionado }) {
+function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   const { dashboard, cargando, error } = useDashboard(
     "No fue posible cargar la información para la toma de decisiones.",
   );
@@ -108,9 +108,11 @@ function Decisiones({ mesSeleccionado }) {
         </div>
 
         <TarjetaPeriodo
-          mes={mesAnalizado?.mes}
+          mes={mesSeleccionado}
           etiqueta="Periodo analizado"
           descripcion="Mes con datos analizados"
+          mesesDisponibles={mesesDisponibles}
+          onCambiarMes={setMesSeleccionado}
         />
       </div>
 

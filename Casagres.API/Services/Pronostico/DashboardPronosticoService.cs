@@ -2,7 +2,7 @@ using Casagres.API.Models.Dtos.Pronostico;
 
 namespace Casagres.API.Services.Pronostico;
 
-public class DashboardPronosticoService
+public class DashboardPronosticoService : IDashboardPronosticoService
 {
     private readonly RutasDatosService _rutas;
 

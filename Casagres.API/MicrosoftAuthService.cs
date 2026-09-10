@@ -68,7 +68,7 @@ de la plataforma CASAGRES.
 =========================================================
 */
 
-public class MicrosoftAuthService
+public class MicrosoftAuthService : IMicrosoftAuthService
 {
     private const string ClientId =
         "c21b50d1-67bf-4da2-a167-25e5d3625973";

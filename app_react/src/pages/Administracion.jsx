@@ -1,8 +1,41 @@
 import { useEffect, useState } from "react";
-import { obtenerUsuarios, cambiarRol, cambiarEstado } from "../services/api";
+import {
+  obtenerUsuarios,
+  cambiarRol,
+  cambiarEstado,
+  eliminarUsuario,
+} from "../services/api";
 import EstadoCargando from "../components/EstadoCargando";
 import MensajeError from "../components/MensajeError";
 import "../styles/Administracion.css";
+
+function calcularNuevoRol(rolActual) {
+  if (rolActual === "pendiente") {
+    return "usuario";
+  }
+
+  return rolActual === "admin" ? "usuario" : "admin";
+}
+
+function etiquetaBoton(rolActual) {
+  if (rolActual === "pendiente") {
+    return "Aprobar acceso";
+  }
+
+  return rolActual === "admin" ? "Hacer usuario" : "Hacer admin";
+}
+
+function infoBadgeRol(rol) {
+  if (rol === "admin") {
+    return { clase: "badge-admin", texto: "Administrador" };
+  }
+
+  if (rol === "pendiente") {
+    return { clase: "badge-pendiente", texto: "Pendiente de aprobación" };
+  }
+
+  return { clase: "badge-usuario", texto: "Usuario" };
+}
 
 function Administracion() {
   const [usuarios, setUsuarios] = useState([]);
@@ -10,6 +43,7 @@ function Administracion() {
   const [error, setError] = useState("");
   const [cambiandoRol, setCambiandoRol] = useState(null);
   const [cambiandoEstado, setCambiandoEstado] = useState(null);
+  const [eliminando, setEliminando] = useState(null);
 
   useEffect(() => {
     const cargarUsuarios = async () => {
@@ -37,11 +71,16 @@ function Administracion() {
   }, []);
 
   const manejarCambioRol = async (usuario) => {
-    const nuevoRol = usuario.rol === "admin" ? "usuario" : "admin";
+    const nuevoRol = calcularNuevoRol(usuario.rol);
 
-    const confirmar = window.confirm(
-      `¿Quieres cambiar el rol de "${usuario.usuario}" a "${nuevoRol}"?`,
-    );
+    const confirmar =
+      usuario.rol === "pendiente"
+        ? window.confirm(
+            `¿Quieres aprobar el acceso de "${usuario.usuario}"? Podrá ver todos los datos de la empresa.`,
+          )
+        : window.confirm(
+            `¿Quieres cambiar el rol de "${usuario.usuario}" a "${nuevoRol}"?`,
+          );
 
     if (!confirmar) {
       return;
@@ -113,6 +152,38 @@ function Administracion() {
     }
   };
 
+  const manejarEliminarUsuario = async (usuario) => {
+    const confirmar = window.confirm(
+      `¿Quieres eliminar permanentemente al usuario "${usuario.usuario}"? Esta acción no se puede deshacer.`,
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    try {
+      setEliminando(usuario.id);
+
+      await eliminarUsuario(usuario.id);
+
+      setUsuarios((usuariosActuales) =>
+        usuariosActuales.filter((u) => u.id !== usuario.id),
+      );
+    } catch (err) {
+      console.error("Error al eliminar el usuario:", err);
+
+      if (err.response?.status === 400) {
+        alert(err.response.data?.mensaje || "No se pudo eliminar el usuario.");
+      } else if (err.response?.status === 403) {
+        alert("No tienes permisos para realizar esta acción.");
+      } else {
+        alert("No fue posible eliminar el usuario.");
+      }
+    } finally {
+      setEliminando(null);
+    }
+  };
+
   if (cargando) {
     return <EstadoCargando mensaje="Cargando usuarios..." />;
   }
@@ -171,14 +242,8 @@ function Administracion() {
                   <td>{usuario.email || "—"}</td>
 
                   <td>
-                    <span
-                      className={`badge-rol ${
-                        usuario.rol === "admin"
-                          ? "badge-admin"
-                          : "badge-usuario"
-                      }`}
-                    >
-                      {usuario.rol === "admin" ? "Administrador" : "Usuario"}
+                    <span className={`badge-rol ${infoBadgeRol(usuario.rol).clase}`}>
+                      {infoBadgeRol(usuario.rol).texto}
                     </span>
                   </td>
 
@@ -206,9 +271,7 @@ function Administracion() {
                       >
                         {cambiandoRol === usuario.id
                           ? "Guardando..."
-                          : usuario.rol === "admin"
-                            ? "Hacer usuario"
-                            : "Hacer admin"}
+                          : etiquetaBoton(usuario.rol)}
                       </button>
 
                       <button
@@ -224,6 +287,15 @@ function Administracion() {
                           : usuario.activo
                             ? "Desactivar"
                             : "Activar"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="boton-eliminar"
+                        onClick={() => manejarEliminarUsuario(usuario)}
+                        disabled={eliminando === usuario.id}
+                      >
+                        {eliminando === usuario.id ? "Eliminando..." : "Eliminar"}
                       </button>
                     </div>
                   </td>

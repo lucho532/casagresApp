@@ -1,18 +1,21 @@
+using Casagres.API.Models;
 using Casagres.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Casagres.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = Roles.ConAccesoADatos)]
 public class ActualizacionController : ControllerBase
 {
-    private readonly ActualizacionService _actualizacionService;
-    private readonly GraphService _graphService;
+    private readonly IActualizacionService _actualizacionService;
+    private readonly IGraphService _graphService;
     private readonly ActualizacionEstadoService _estadoService;
     public ActualizacionController(
-    ActualizacionService actualizacionService,
-    GraphService graphService,
+    IActualizacionService actualizacionService,
+    IGraphService graphService,
     ActualizacionEstadoService estadoService)
     {
         _actualizacionService = actualizacionService;

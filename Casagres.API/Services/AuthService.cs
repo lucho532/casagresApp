@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using Casagres.API.Data;
 using Casagres.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ using Npgsql;
 
 namespace Casagres.API.Services;
 
-public class AuthService
+public class AuthService : IAuthService
 {
     private readonly CasagresDbContext _db;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IEmailVerificationService _emailVerificationService;
 
     private const string MicrosoftClientId =
         "c21b50d1-67bf-4da2-a167-25e5d3625973";
@@ -23,25 +26,40 @@ public class AuthService
     private const string MicrosoftAuthority =
         "https://login.microsoftonline.com/common/v2.0";
 
+    private const string GoogleUserInfoUrl =
+        "https://www.googleapis.com/oauth2/v3/userinfo";
+
     private readonly ConfigurationManager<OpenIdConnectConfiguration>
         _microsoftConfigurationManager;
 
     public AuthService(
         CasagresDbContext db,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory,
+        IEmailVerificationService emailVerificationService)
     {
         _db = db;
         _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
+        _emailVerificationService = emailVerificationService;
 
-        var metadataAddress =
-            $"{MicrosoftAuthority}/.well-known/openid-configuration";
-
-        _microsoftConfigurationManager =
-            new ConfigurationManager<OpenIdConnectConfiguration>(
-                metadataAddress,
-                new OpenIdConnectConfigurationRetriever(),
-                new HttpDocumentRetriever { RequireHttps = true });
+        _microsoftConfigurationManager = CrearAdministradorConfiguracionOidc(
+            $"{MicrosoftAuthority}/.well-known/openid-configuration");
     }
+
+    private static ConfigurationManager<OpenIdConnectConfiguration>
+        CrearAdministradorConfiguracionOidc(string metadataAddress) =>
+        new(
+            metadataAddress,
+            new OpenIdConnectConfigurationRetriever(),
+            new HttpDocumentRetriever { RequireHttps = true });
+
+    // ============================================================
+    // PERFIL
+    // ============================================================
+
+    public async Task<Usuario?> ObtenerPorIdAsync(long id) =>
+        await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
 
     // ============================================================
     // LOGIN CON USUARIO Y CONTRASEÑA
@@ -57,6 +75,11 @@ public class AuthService
 
         if (!BCrypt.Net.BCrypt.Verify(password, usuarioDb.PasswordHash))
             return null;
+
+        if (!usuarioDb.EmailVerificado)
+        {
+            throw new EmailNoVerificadoException(usuarioDb.Email);
+        }
 
         return GenerarJwt(usuarioDb);
     }
@@ -93,57 +116,49 @@ public class AuthService
             Nombre = nombre,
             Email = email,
             Activo = true,
-            FechaCreacion = DateTime.UtcNow
+            FechaCreacion = DateTime.UtcNow,
+            EmailVerificado = false,
+            // Queda pendiente de aprobación por un admin: no debe ver
+            // datos de la empresa hasta que le cambien el rol.
+            Rol = Roles.Pendiente
         };
 
         _db.Usuarios.Add(nuevoUsuario);
 
         await _db.SaveChangesAsync();
 
+        await EnviarVerificacionSinFallarElRegistroAsync(nuevoUsuario);
+
         return true;
+    }
+
+    private async Task EnviarVerificacionSinFallarElRegistroAsync(Usuario usuario)
+    {
+        try
+        {
+            await _emailVerificationService.EnviarCorreoDeVerificacionAsync(usuario);
+        }
+        catch (Exception ex)
+        {
+            // El usuario ya quedó creado; un fallo de correo no debe
+            // convertir un registro exitoso en un error 500. Queda la
+            // opción de reenviar la verificación más adelante.
+            Console.WriteLine($"No fue posible enviar el correo de verificación: {ex.Message}");
+        }
     }
 
     // ============================================================
     // LOGIN CON MICROSOFT
     // ============================================================
 
-    public async Task<string?> LoginConMicrosoftAsync(string idToken)
-    {
-        var principal = await ValidarTokenMicrosoftAsync(idToken);
-
-        if (principal == null)
-            return null;
-
-        var datos = ExtraerDatosUsuario(principal);
-
-        if (datos == null)
-            return null;
-
-        LogAutenticacionMicrosoft(datos.Value);
-
-        var usuario = await ObtenerOCrearUsuarioMicrosoftAsync(datos.Value);
-
-        return usuario != null ? GenerarJwt(usuario) : null;
-    }
-
-    private async Task<ClaimsPrincipal?> ValidarTokenMicrosoftAsync(string idToken)
-    {
-        var configuration = await _microsoftConfigurationManager
-            .GetConfigurationAsync(CancellationToken.None);
-
-        var validationParameters = ConstruirParametrosValidacionMicrosoft(configuration);
-
-        try
-        {
-            return new JwtSecurityTokenHandler()
-                .ValidateToken(idToken, validationParameters, out _);
-        }
-        catch (SecurityTokenException ex)
-        {
-            Console.WriteLine($"Token Microsoft rechazado: {ex.Message}");
-            return null;
-        }
-    }
+    public async Task<string?> LoginConMicrosoftAsync(string idToken) =>
+        await LoginConProveedorExternoAsync(
+            idToken,
+            _microsoftConfigurationManager,
+            ConstruirParametrosValidacionMicrosoft,
+            ExtraerDatosUsuarioMicrosoft,
+            proveedor: "MICROSOFT",
+            sufijoUsuario: "microsoft");
 
     private static TokenValidationParameters ConstruirParametrosValidacionMicrosoft(
         OpenIdConnectConfiguration configuration) =>
@@ -189,41 +204,148 @@ public class AuthService
         return issuer;
     }
 
-    private static DatosUsuarioMicrosoft? ExtraerDatosUsuario(ClaimsPrincipal principal)
+    private static DatosUsuarioExterno? ExtraerDatosUsuarioMicrosoft(ClaimsPrincipal principal)
     {
         var email = principal.FindFirst("preferred_username")?.Value;
 
         if (string.IsNullOrWhiteSpace(email))
             return null;
 
-        return new DatosUsuarioMicrosoft(
-            email,
-            principal.FindFirst("name")?.Value,
-            principal.FindFirst("oid")?.Value,
-            principal.FindFirst("tid")?.Value);
+        return new DatosUsuarioExterno(email, principal.FindFirst("name")?.Value);
     }
 
-    private static void LogAutenticacionMicrosoft(DatosUsuarioMicrosoft datos)
+    // ============================================================
+    // LOGIN CON GOOGLE
+    // ============================================================
+    //
+    // A diferencia de Microsoft (que entrega un id_token / JWT firmado que
+    // se valida localmente contra las claves públicas de Azure), el botón
+    // personalizado de Google (useGoogleLogin) entrega un access_token de
+    // OAuth2 puro. Ese token no es un JWT: se valida pidiéndole a Google
+    // los datos del usuario con él. Si el token es inválido o expiró,
+    // Google responde con error y la petición falla.
+
+    public async Task<string?> LoginConGoogleAsync(string accessToken)
+    {
+        var datos = await ObtenerDatosUsuarioGoogleAsync(accessToken);
+
+        if (datos == null)
+            return null;
+
+        LogAutenticacionExterna("GOOGLE", datos.Value);
+
+        var usuario = await ObtenerOCrearUsuarioExternoAsync(datos.Value, sufijoUsuario: "google");
+
+        return usuario != null ? GenerarJwt(usuario) : null;
+    }
+
+    private async Task<DatosUsuarioExterno?> ObtenerDatosUsuarioGoogleAsync(string accessToken)
+    {
+        var cliente = _httpClientFactory.CreateClient();
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Get, GoogleUserInfoUrl);
+        solicitud.Headers.Authorization = new("Bearer", accessToken);
+
+        using var respuesta = await cliente.SendAsync(solicitud);
+
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            Console.WriteLine(
+                $"Token GOOGLE rechazado: Google respondió {(int)respuesta.StatusCode}.");
+            return null;
+        }
+
+        using var contenido = await respuesta.Content.ReadAsStreamAsync();
+        using var perfil = await JsonDocument.ParseAsync(contenido);
+
+        if (!perfil.RootElement.TryGetProperty("email", out var emailElemento))
+            return null;
+
+        var email = emailElemento.GetString();
+
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+
+        var nombre = perfil.RootElement.TryGetProperty("name", out var nombreElemento)
+            ? nombreElemento.GetString()
+            : null;
+
+        return new DatosUsuarioExterno(email, nombre);
+    }
+
+    // ============================================================
+    // FLUJO COMÚN PARA PROVEEDORES EXTERNOS (MICROSOFT / GOOGLE)
+    // ============================================================
+
+    private async Task<string?> LoginConProveedorExternoAsync(
+        string idToken,
+        ConfigurationManager<OpenIdConnectConfiguration> configurationManager,
+        Func<OpenIdConnectConfiguration, TokenValidationParameters> construirParametros,
+        Func<ClaimsPrincipal, DatosUsuarioExterno?> extraerDatos,
+        string proveedor,
+        string sufijoUsuario)
+    {
+        var principal = await ValidarTokenExternoAsync(
+            idToken, configurationManager, construirParametros, proveedor);
+
+        if (principal == null)
+            return null;
+
+        var datos = extraerDatos(principal);
+
+        if (datos == null)
+            return null;
+
+        LogAutenticacionExterna(proveedor, datos.Value);
+
+        var usuario = await ObtenerOCrearUsuarioExternoAsync(datos.Value, sufijoUsuario);
+
+        return usuario != null ? GenerarJwt(usuario) : null;
+    }
+
+    private async Task<ClaimsPrincipal?> ValidarTokenExternoAsync(
+        string idToken,
+        ConfigurationManager<OpenIdConnectConfiguration> configurationManager,
+        Func<OpenIdConnectConfiguration, TokenValidationParameters> construirParametros,
+        string proveedor)
+    {
+        var configuration = await configurationManager
+            .GetConfigurationAsync(CancellationToken.None);
+
+        var validationParameters = construirParametros(configuration);
+
+        try
+        {
+            return new JwtSecurityTokenHandler()
+                .ValidateToken(idToken, validationParameters, out _);
+        }
+        catch (SecurityTokenException ex)
+        {
+            Console.WriteLine($"Token {proveedor} rechazado: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static void LogAutenticacionExterna(string proveedor, DatosUsuarioExterno datos)
     {
         Console.WriteLine();
         Console.WriteLine("==========================================");
-        Console.WriteLine("AUTENTICACIÓN MICROSOFT VALIDADA");
+        Console.WriteLine($"AUTENTICACIÓN {proveedor} VALIDADA");
         Console.WriteLine("==========================================");
         Console.WriteLine($"Email: {datos.Email}");
         Console.WriteLine($"Nombre: {datos.Nombre}");
-        Console.WriteLine($"OID: {datos.ObjectId}");
-        Console.WriteLine($"Tenant: {datos.TenantId}");
         Console.WriteLine("==========================================");
     }
 
-    private async Task<Usuario?> ObtenerOCrearUsuarioMicrosoftAsync(DatosUsuarioMicrosoft datos)
+    private async Task<Usuario?> ObtenerOCrearUsuarioExternoAsync(
+        DatosUsuarioExterno datos, string sufijoUsuario)
     {
         var usuarioExistente = await _db.Usuarios
             .FirstOrDefaultAsync(u => u.Email == datos.Email);
 
         return usuarioExistente != null
             ? await ActualizarUsuarioExistenteAsync(usuarioExistente, datos.Nombre)
-            : await CrearUsuarioMicrosoftAsync(datos);
+            : await CrearUsuarioExternoAsync(datos, sufijoUsuario);
     }
 
     private async Task<Usuario?> ActualizarUsuarioExistenteAsync(Usuario usuario, string? nombre)
@@ -236,17 +358,21 @@ public class AuthService
             usuario.Nombre = nombre;
         }
 
+        // Si inició sesión con un proveedor externo, ese proveedor ya
+        // verificó que el correo le pertenece.
+        usuario.EmailVerificado = true;
+
         await _db.SaveChangesAsync();
 
-        Console.WriteLine($"Usuario Microsoft existente: {usuario.Email}");
+        Console.WriteLine($"Usuario externo existente: {usuario.Email}");
 
         return usuario;
     }
 
-    private async Task<Usuario?> CrearUsuarioMicrosoftAsync(DatosUsuarioMicrosoft datos)
+    private async Task<Usuario?> CrearUsuarioExternoAsync(DatosUsuarioExterno datos, string sufijoUsuario)
     {
-        var usuarioNombre = await GenerarNombreUsuarioUnicoAsync(datos.Email);
-        var usuario = ConstruirUsuarioMicrosoft(datos, usuarioNombre);
+        var usuarioNombre = await GenerarNombreUsuarioUnicoAsync(datos.Email, sufijoUsuario);
+        var usuario = ConstruirUsuarioExterno(datos, usuarioNombre);
 
         _db.Usuarios.Add(usuario);
 
@@ -254,7 +380,7 @@ public class AuthService
         {
             await _db.SaveChangesAsync();
 
-            Console.WriteLine($"Nuevo usuario Microsoft creado: {datos.Email}");
+            Console.WriteLine($"Nuevo usuario externo creado: {datos.Email}");
 
             return usuario;
         }
@@ -262,7 +388,7 @@ public class AuthService
             when (ex.InnerException is PostgresException postgresException &&
                   postgresException.SqlState == "23505")
         {
-            Console.WriteLine($"El usuario Microsoft ya existía: {datos.Email}");
+            Console.WriteLine($"El usuario externo ya existía: {datos.Email}");
 
             // El INSERT pudo haberse completado aunque la respuesta
             // haya provocado un reintento. Buscamos nuevamente por email.
@@ -290,33 +416,38 @@ public class AuthService
         return usuario;
     }
 
-    private async Task<string> GenerarNombreUsuarioUnicoAsync(string email)
+    private async Task<string> GenerarNombreUsuarioUnicoAsync(string email, string sufijoUsuario)
     {
         if (!await _db.Usuarios.AnyAsync(u => u.UsuarioNombre == email))
             return email;
 
-        var candidato = $"{email}_microsoft";
+        var candidato = $"{email}_{sufijoUsuario}";
         var contador = 1;
 
         while (await _db.Usuarios.AnyAsync(u => u.UsuarioNombre == candidato))
         {
-            candidato = $"{email}_microsoft{contador}";
+            candidato = $"{email}_{sufijoUsuario}{contador}";
             contador++;
         }
 
         return candidato;
     }
 
-    private static Usuario ConstruirUsuarioMicrosoft(DatosUsuarioMicrosoft datos, string usuarioNombre) =>
+    private static Usuario ConstruirUsuarioExterno(DatosUsuarioExterno datos, string usuarioNombre) =>
         new()
         {
             UsuarioNombre = usuarioNombre,
             Nombre = datos.Nombre ?? datos.Email,
             Email = datos.Email,
-            Rol = "usuario",
+            // Cualquiera con una cuenta de Microsoft/Google puede
+            // autenticarse aquí por primera vez: igual que en el registro
+            // manual, queda pendiente de aprobación por un admin.
+            Rol = Roles.Pendiente,
             Activo = true,
             FechaCreacion = DateTime.UtcNow,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString())
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+            // El proveedor externo (Microsoft/Google) ya verificó este correo.
+            EmailVerificado = true
         };
 
     // ============================================================
@@ -351,6 +482,5 @@ public class AuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private readonly record struct DatosUsuarioMicrosoft(
-        string Email, string? Nombre, string? ObjectId, string? TenantId);
+    private readonly record struct DatosUsuarioExterno(string Email, string? Nombre);
 }

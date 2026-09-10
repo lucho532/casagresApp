@@ -18,7 +18,7 @@ import EstadoCargando from "../components/EstadoCargando";
 import MensajeError from "../components/MensajeError";
 import "../styles/Tendencias.css";
 
-function Tendencias({ mesSeleccionado }) {
+function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   const {
     dashboard,
     cargando,
@@ -45,8 +45,21 @@ function Tendencias({ mesSeleccionado }) {
     return primerMes?.productos || [];
   }, [dashboard]);
 
-  // Si el usuario aún no ha elegido nada, se usa el primer producto disponible.
-  const referenciaEfectiva = referenciaSeleccionada || productos[0]?.referencia || "";
+  // Si el usuario aún no ha elegido nada, se usa el producto con mayor
+  // demanda proyectada como selección por defecto.
+  const referenciaMayorDemanda = useMemo(() => {
+    if (productos.length === 0) {
+      return "";
+    }
+
+    return productos.reduce((mayor, actual) =>
+      Number(actual.pronostico || 0) > Number(mayor.pronostico || 0)
+        ? actual
+        : mayor,
+    ).referencia;
+  }, [productos]);
+
+  const referenciaEfectiva = referenciaSeleccionada || referenciaMayorDemanda;
 
   // =========================================
   // OBTENER HISTÓRICO
@@ -247,6 +260,8 @@ function Tendencias({ mesSeleccionado }) {
           mes={mesSeleccionado}
           etiqueta="Horizonte mostrado"
           descripcion="Hasta este mes se muestran predicciones"
+          mesesDisponibles={mesesDisponibles}
+          onCambiarMes={setMesSeleccionado}
         />
       </div>
 

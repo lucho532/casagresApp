@@ -54,6 +54,49 @@
   color: var(--texto-secundario);
 }
 
+/* Variante editable: el mes se elige desde un <select>. */
+
+.tarjeta-periodo-select-envoltorio {
+  position: relative;
+}
+
+.tarjeta-periodo-select {
+  display: block;
+  width: 100%;
+  padding: 0 20px 0 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-transform: capitalize;
+  color: var(--casagres-principal);
+  cursor: pointer;
+  appearance: none;
+}
+
+.tarjeta-periodo-select option {
+  background: #ffffff;
+  color: var(--texto-principal);
+  font-family: inherit;
+  font-size: 14px;
+  text-transform: none;
+}
+
+.tarjeta-periodo-select-envoltorio::after {
+  content: "⌄";
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  font-size: 16px;
+  line-height: 1;
+  color: var(--casagres-principal);
+  pointer-events: none;
+}
+
 @media (max-width: 700px) {
   .tarjeta-periodo {
     width: 100%;

@@ -8,9 +8,38 @@ function ControlActualizacion({
   onUltimaActualizacion,
   onActualizacionCompletada,
 }) {
+  const HORIZONTE_MINIMO = 1;
+  const HORIZONTE_MAXIMO = 24;
+
   const [actualizando, setActualizando] = useState(false);
   const [estadoActualizacion, setEstadoActualizacion] = useState(null);
   const [horizonte, setHorizonte] = useState(1);
+
+  const horizonteValido =
+    Number.isInteger(horizonte) &&
+    horizonte >= HORIZONTE_MINIMO &&
+    horizonte <= HORIZONTE_MAXIMO;
+
+  const manejarCambioHorizonte = (e) => {
+    const valor = e.target.value;
+
+    if (valor === "") {
+      setHorizonte("");
+      return;
+    }
+
+    const numero = Number(valor);
+
+    if (!Number.isNaN(numero)) {
+      setHorizonte(numero);
+    }
+  };
+
+  const manejarBlurHorizonte = () => {
+    if (!horizonteValido) {
+      setHorizonte(HORIZONTE_MINIMO);
+    }
+  };
 
   const intervaloRef = useRef(null);
 
@@ -78,7 +107,7 @@ function ControlActualizacion({
   };
 
   const ejecutarActualizacion = async () => {
-    if (actualizando) {
+    if (actualizando || !horizonteValido) {
       return;
     }
 
@@ -178,50 +207,64 @@ function ControlActualizacion({
 
   return (
     <div className="control-actualizacion">
-      <div className="selector-horizonte">
-        <label htmlFor="horizonte">Horizonte:</label>
+      <div className="control-actualizacion-tarjeta">
+        <div className="control-actualizacion-fila">
+          <div className="selector-horizonte">
+            <label htmlFor="horizonte" className="sr-only">
+              Horizonte en meses:
+            </label>
 
-        <select
-          id="horizonte"
-          value={horizonte}
-          onChange={(e) => setHorizonte(Number(e.target.value))}
-          disabled={actualizando}
-        >
-          <option value={1}>1 mes</option>
-          <option value={3}>3 meses</option>
-          <option value={6}>6 meses</option>
-          <option value={12}>12 meses</option>
-        </select>
-      </div>
-
-      <button
-        className={`boton-actualizar ${actualizando ? "actualizando" : ""}`}
-        onClick={ejecutarActualizacion}
-        disabled={actualizando}
-      >
-        <span className="icono-actualizar">{actualizando ? "↻" : "⟳"}</span>
-
-        <span>{actualizando ? "Actualizando..." : "Actualizar datos"}</span>
-      </button>
-
-      {estadoActualizacion && (
-        <div className="estado-actualizacion">
-          <div className="estado-texto">
-            <span
-              className={`estado-punto ${
-                estadoActualizacion.ejecutando
-                  ? "estado-punto-activo"
-                  : estadoActualizacion.error
-                    ? "estado-punto-error"
-                    : "estado-punto-ok"
-              }`}
+            <input
+              id="horizonte"
+              type="number"
+              inputMode="numeric"
+              min={HORIZONTE_MINIMO}
+              max={HORIZONTE_MAXIMO}
+              step={1}
+              title={`Horizonte de predicción en meses (${HORIZONTE_MINIMO}-${HORIZONTE_MAXIMO})`}
+              value={horizonte}
+              onChange={manejarCambioHorizonte}
+              onBlur={manejarBlurHorizonte}
+              disabled={actualizando}
             />
-
-            <span>{estadoActualizacion.estado}</span>
           </div>
 
-          {estadoActualizacion.ejecutando && (
-            <>
+          <button
+            className={`boton-actualizar ${actualizando ? "actualizando" : ""}`}
+            onClick={ejecutarActualizacion}
+            disabled={actualizando || !horizonteValido}
+          >
+            <span className="icono-actualizar">{actualizando ? "↻" : "⟳"}</span>
+
+            <span>{actualizando ? "Actualizando..." : "Actualizar datos"}</span>
+          </button>
+        </div>
+
+        {estadoActualizacion && (
+          <div className="estado-actualizacion">
+            <div className="estado-texto">
+              <span
+                className={`estado-punto ${
+                  estadoActualizacion.ejecutando
+                    ? "estado-punto-activo"
+                    : estadoActualizacion.error
+                      ? "estado-punto-error"
+                      : "estado-punto-ok"
+                }`}
+              />
+
+              <span className="estado-texto-contenido">
+                {estadoActualizacion.estado}
+              </span>
+
+              {estadoActualizacion.ejecutando && (
+                <span className="progreso-porcentaje">
+                  {estadoActualizacion.progreso || 0}%
+                </span>
+              )}
+            </div>
+
+            {estadoActualizacion.ejecutando && (
               <div className="barra-progreso">
                 <div
                   className="barra-progreso-relleno"
@@ -233,14 +276,16 @@ function ControlActualizacion({
                   }}
                 />
               </div>
+            )}
 
-              <div className="progreso-porcentaje">
-                {estadoActualizacion.progreso || 0}%
-              </div>
-            </>
-          )}
-        </div>
-      )}
+            {!estadoActualizacion.ejecutando &&
+              estadoActualizacion.error &&
+              estadoActualizacion.error !== estadoActualizacion.estado && (
+                <div className="estado-detalle">{estadoActualizacion.error}</div>
+              )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

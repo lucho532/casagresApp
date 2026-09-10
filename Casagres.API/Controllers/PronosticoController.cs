@@ -1,27 +1,30 @@
+using Casagres.API.Models;
 using Casagres.API.Services;
 using Casagres.API.Services.Pronostico;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Casagres.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = Roles.ConAccesoADatos)]
 public class PronosticoController : ControllerBase
 {
-    private readonly ExcelExportService _excelExportService;
-    private readonly PronosticoCsvService _pronosticoService;
-    private readonly PronosticoIntervalosCsvService _intervalosService;
-    private readonly MetodosCsvService _metodosService;
-    private readonly DashboardPronosticoService _dashboardService;
-    private readonly HistoricoVentasService _historicoService;
+    private readonly IExcelExportService _excelExportService;
+    private readonly IPronosticoCsvService _pronosticoService;
+    private readonly IPronosticoIntervalosCsvService _intervalosService;
+    private readonly IMetodosCsvService _metodosService;
+    private readonly IDashboardPronosticoService _dashboardService;
+    private readonly IHistoricoVentasService _historicoService;
 
     public PronosticoController(
-        ExcelExportService excelExportService,
-        PronosticoCsvService pronosticoService,
-        PronosticoIntervalosCsvService intervalosService,
-        MetodosCsvService metodosService,
-        DashboardPronosticoService dashboardService,
-        HistoricoVentasService historicoService)
+        IExcelExportService excelExportService,
+        IPronosticoCsvService pronosticoService,
+        IPronosticoIntervalosCsvService intervalosService,
+        IMetodosCsvService metodosService,
+        IDashboardPronosticoService dashboardService,
+        IHistoricoVentasService historicoService)
     {
         _excelExportService = excelExportService;
         _pronosticoService = pronosticoService;

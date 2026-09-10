@@ -2,7 +2,7 @@ using Casagres.API.Models.Dtos.Pronostico;
 
 namespace Casagres.API.Services.Pronostico;
 
-public class MetodosCsvService
+public class MetodosCsvService : IMetodosCsvService
 {
     private const int ColumnasEsperadas = 5;
 

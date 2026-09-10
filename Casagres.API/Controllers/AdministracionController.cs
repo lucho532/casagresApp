@@ -1,3 +1,4 @@
+using Casagres.API.Models;
 using Casagres.API.Models.Dtos.Administracion;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace Casagres.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "admin")]
+[Authorize(Roles = Roles.Admin)]
 public class AdministracionController : ControllerBase
 {
     private readonly CasagresDbContext _db;
@@ -53,7 +54,7 @@ public class AdministracionController : ControllerBase
 
         var rol = request.Rol.Trim().ToLower();
 
-        if (rol != "admin" && rol != "usuario")
+        if (rol != Roles.Admin && rol != Roles.Usuario)
         {
             return BadRequest(new
             {
@@ -137,6 +138,55 @@ public class AdministracionController : ControllerBase
 
             usuario.Id,
             usuario.Activo
+        });
+    }
+
+    [HttpDelete("usuarios/{id}")]
+    public async Task<IActionResult> EliminarUsuario(long id)
+    {
+        var usuario = await _db.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (usuario == null)
+        {
+            return NotFound(new
+            {
+                mensaje = "El usuario no existe."
+            });
+        }
+
+        var usuarioActualId = User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier
+        )?.Value;
+
+        if (usuarioActualId == id.ToString())
+        {
+            return BadRequest(new
+            {
+                mensaje = "No puedes eliminar tu propio usuario."
+            });
+        }
+
+        // Los tokens de reset/verificación referencian al usuario y no
+        // tienen borrado en cascada en la base de datos: hay que
+        // eliminarlos primero para no violar la llave foránea.
+        var tokensReset = await _db.PasswordResetTokens
+            .Where(t => t.UsuarioId == id)
+            .ToListAsync();
+
+        var tokensVerificacion = await _db.EmailVerificationTokens
+            .Where(t => t.UsuarioId == id)
+            .ToListAsync();
+
+        _db.PasswordResetTokens.RemoveRange(tokensReset);
+        _db.EmailVerificationTokens.RemoveRange(tokensVerificacion);
+        _db.Usuarios.Remove(usuario);
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            mensaje = "Usuario eliminado correctamente."
         });
     }
 }

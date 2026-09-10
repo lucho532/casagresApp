@@ -2,9 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { PublicClientApplication } from "@azure/msal-browser";
 import { MsalProvider } from "@azure/msal-react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import App from "./App.jsx";
-import { msalConfig } from "./authConfig";
+import { msalConfig, googleClientId } from "./authConfig";
 
 import "./index.css";
 
@@ -24,7 +25,9 @@ async function iniciarAplicacion() {
   createRoot(document.getElementById("root")).render(
     <StrictMode>
       <MsalProvider instance={msalInstance}>
-        <App />
+        <GoogleOAuthProvider clientId={googleClientId}>
+          <App />
+        </GoogleOAuthProvider>
       </MsalProvider>
     </StrictMode>,
   );

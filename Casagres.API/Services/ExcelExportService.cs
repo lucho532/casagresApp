@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Casagres.API.Services;
 
-public class ExcelExportService
+public class ExcelExportService : IExcelExportService
 {
     private readonly CasagresDbContext _context;
     private readonly IConfiguration _configuration;

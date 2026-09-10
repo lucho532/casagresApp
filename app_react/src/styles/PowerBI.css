@@ -79,6 +79,175 @@
   font-weight: 700;
 }
 
+/* =========================================
+   BARRA DE TABLEROS
+========================================= */
+
+.powerbi-barra {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.powerbi-selector {
+  display: block;
+  min-width: 260px;
+}
+
+.powerbi-selector span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--texto-secundario);
+}
+
+.powerbi-selector select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--texto-principal);
+  cursor: pointer;
+}
+
+.powerbi-selector select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.powerbi-acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.powerbi-boton-agregar {
+  padding: 9px 14px;
+  border: 1px solid var(--casagres-principal);
+  border-radius: 7px;
+  background: var(--casagres-principal);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.powerbi-boton-agregar:hover {
+  background: var(--casagres-principal-hover);
+  border-color: var(--casagres-principal-hover);
+}
+
+.powerbi-boton-eliminar {
+  padding: 9px 14px;
+  border: 1px solid #dc2626;
+  border-radius: 7px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.powerbi-boton-eliminar:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.powerbi-boton-eliminar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   FORMULARIO PARA AGREGAR TABLERO
+========================================= */
+
+.powerbi-formulario {
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(160deg, #ffffff, #fbf3ee);
+  border-top: 3px solid var(--casagres-principal);
+  border-right: 1px solid var(--borde);
+  border-bottom: 1px solid var(--borde);
+  border-left: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(50, 30, 20, 0.04);
+}
+
+.powerbi-formulario-campos {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(280px, 2fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.powerbi-formulario-campos label {
+  display: block;
+}
+
+.powerbi-formulario-campos span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--texto-secundario);
+}
+
+.powerbi-formulario-campos input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--texto-principal);
+  box-sizing: border-box;
+}
+
+.powerbi-formulario-campos input:focus {
+  outline: none;
+  border-color: var(--casagres-principal);
+}
+
+.powerbi-formulario-error {
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--error);
+}
+
+.powerbi-formulario button[type="submit"] {
+  padding: 9px 16px;
+  border: 1px solid var(--casagres-principal);
+  border-radius: 7px;
+  background: var(--casagres-principal);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.powerbi-formulario button[type="submit"]:hover:not(:disabled) {
+  background: var(--casagres-principal-hover);
+}
+
+.powerbi-formulario button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* POWER BI REAL (IFRAME) */
 .powerbi-contenedor-real {
   width: 100%;
@@ -112,5 +281,14 @@
     height: calc(100vh - 170px);
     min-height: 500px;
     border-radius: 10px;
+  }
+
+  .powerbi-barra {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .powerbi-formulario-campos {
+    grid-template-columns: 1fr;
   }
 }

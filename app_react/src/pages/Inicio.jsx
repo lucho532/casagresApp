@@ -115,7 +115,7 @@ function Inicio({
         ================================== */}
 
         <div className="inicio-periodo">
-          <span>Próximo periodo</span>
+          <span>Horizonte mostrado</span>
 
           <select
             value={mesSeleccionado}

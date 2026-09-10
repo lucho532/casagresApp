@@ -124,6 +124,11 @@
   color: #2563eb;
 }
 
+.badge-pendiente {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 
 /* =========================================================
    ESTADO
@@ -236,6 +241,32 @@
 /* DESHABILITADO */
 
 .boton-cambiar-estado:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   ELIMINAR
+   ========================================================= */
+
+.boton-eliminar {
+  padding: 7px 12px;
+  border: 1px solid #dc2626;
+  border-radius: 7px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.boton-eliminar:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.boton-eliminar:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

@@ -17,5 +17,7 @@ public class Usuario
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
     // NUEVO: Rol del usuario
-    public string Rol { get; set; } = "usuario";
+    public string Rol { get; set; } = Roles.Pendiente;
+
+    public bool EmailVerificado { get; set; }
 }

@@ -4,8 +4,8 @@ namespace Casagres.API.Services;
 
 public class MonitorOneDriveService : BackgroundService
 {
-    private readonly GraphService _graphService;
-    private readonly ActualizacionService _actualizacionService;
+    private readonly IGraphService _graphService;
+    private readonly IActualizacionService _actualizacionService;
     private readonly IConfiguration _configuration;
 
     // Revisar OneDrive cada hora
@@ -13,8 +13,8 @@ public class MonitorOneDriveService : BackgroundService
         TimeSpan.FromHours(1);
 
     public MonitorOneDriveService(
-        GraphService graphService,
-        ActualizacionService actualizacionService,
+        IGraphService graphService,
+        IActualizacionService actualizacionService,
         IConfiguration configuration)
     {
         _graphService = graphService;
