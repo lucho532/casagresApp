@@ -610,6 +610,100 @@ Permite visualizar localmente la versión construida.
 
 ---
 
+# 🐳 Despliegue con Docker
+
+La aplicación puede empaquetarse y levantarse completa (backend + frontend)
+con Docker, sin instalar .NET, Node ni Python en la máquina destino.
+
+## Requisitos
+
+* Docker y Docker Compose.
+* Una base de datos PostgreSQL accesible desde donde corra el contenedor
+  (por ejemplo, un proyecto de Supabase).
+
+## Puesta en marcha
+
+1. Copiar el archivo de variables de entorno de ejemplo y completarlo:
+
+   ```powershell
+   cp .env.example .env
+   ```
+
+   Ahí se configuran, entre otras cosas, la cadena de conexión a Postgres,
+   la clave del JWT, las credenciales SMTP y la URL pública del frontend.
+
+2. Levantar todo:
+
+   ```powershell
+   docker compose up -d --build
+   ```
+
+   Esto construye dos imágenes:
+
+   * **`backend`** — API en .NET 9, con Python 3.12 instalado dentro de la
+     misma imagen para poder ejecutar el pipeline analítico. Expone el
+     puerto `8090` (mapeado al `8080` interno).
+   * **`frontend`** — build de producción de React servido con nginx. La
+     URL de la API se incrusta en el build (variable `VITE_API_URL`), así
+     que si cambia hay que reconstruir la imagen. Expone el puerto `8081`.
+
+3. La primera vez, hay que crear las tablas en la base de datos con las
+   migraciones de Entity Framework (una sola vez, no en cada despliegue):
+
+   ```powershell
+   cd Casagres.API
+   dotnet ef database update
+   ```
+
+## Datos que persisten entre despliegues
+
+El `docker-compose.yml` define volúmenes para lo que no debe perderse al
+recrear los contenedores:
+
+* `casagres_datos` — informes de ventas y salidas del pipeline.
+* `casagres_msal_cache` — sesión de la cuenta de Microsoft usada para
+  OneDrive (si no se persiste, hay que volver a iniciar sesión cada vez).
+* `casagres_dataprotection_keys` — llaves internas de ASP.NET Core.
+
+## Notas
+
+* El backend corre en modo de globalización invariante
+  (`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`) porque el código ya parsea
+  números con `CultureInfo.InvariantCulture`, evitando así depender de
+  paquetes de ICU específicos de la distribución de Linux usada.
+* Si Supabase (u otro proveedor) solo ofrece el *connection pooler* en modo
+  transacción (puerto 6543), usar en su lugar el *session pooler* (puerto
+  5432) para correr las migraciones — el modo transacción puede fallar al
+  ejecutar sentencias DDL como `CREATE TABLE`.
+
+## Despliegue gratuito en Render
+
+El repositorio incluye un `render.yaml` (Blueprint de Render) que define
+backend y frontend juntos:
+
+1. En el dashboard de Render: **New → Blueprint**, y seleccionar este
+   repositorio de GitHub.
+2. Render pide los valores de las variables marcadas como secretas
+   (`ConnectionStrings__CadenaPostgres`, `Jwt__Key`, credenciales SMTP,
+   `VITE_API_URL`, etc.) — son las mismas de `.env.example`.
+3. Una vez desplegado el frontend, actualizar `Frontend__Url` (backend) y
+   `VITE_API_URL` (frontend) con las URLs reales que asigna Render
+   (`https://casagres-frontend.onrender.com`, etc.) y volver a desplegar.
+
+**Limitaciones del plan gratuito a tener en cuenta:**
+
+* El servicio del backend se "duerme" tras 15 minutos sin tráfico; la
+  primera solicitud después de eso tarda unos 30-50 segundos en responder.
+* El plan gratuito no incluye disco persistente: la carpeta de datos
+  (`/app/proyecto_icmd`) y la sesión de Microsoft (caché de OneDrive) se
+  reinician en cada despliegue. En la práctica esto significa que, tras
+  cada deploy, hay que volver a iniciar sesión con Microsoft y volver a
+  ejecutar "Actualizar datos" para regenerar el pronóstico.
+* El sitio estático del frontend, en cambio, no se duerme (los sitios
+  estáticos de Render son siempre gratuitos y no tienen ese límite).
+
+---
+
 # 🧪 Pruebas automatizadas
 
 El proyecto cuenta con pruebas automatizadas tanto en el backend como en el frontend.

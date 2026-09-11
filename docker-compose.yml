@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Casagres.API/Dockerfile
+    ports:
+      - "8090:8080"
+    environment:
+      ConnectionStrings__CadenaPostgres: ${CADENA_POSTGRES}
+      Jwt__Key: ${JWT_KEY}
+      OneDrive__CarpetaCompartidaUrl: ${ONEDRIVE_URL}
+      Smtp__Host: ${SMTP_HOST}
+      Smtp__Puerto: ${SMTP_PUERTO}
+      Smtp__Usuario: ${SMTP_USUARIO}
+      Smtp__Password: ${SMTP_PASSWORD}
+      Smtp__RemitenteNombre: ${SMTP_REMITENTE}
+      Frontend__Url: ${FRONTEND_URL}
+    volumes:
+      # Informes de ventas y salidas del pipeline: deben sobrevivir a que se
+      # recree el contenedor.
+      - casagres_datos:/app/proyecto_icmd
+      # Sesión de Microsoft (OneDrive) y llaves de DataProtection: si no se
+      # persisten, hay que volver a iniciar sesión con Microsoft cada vez
+      # que se recrea el contenedor.
+      - casagres_msal_cache:/root/.local/share/Casagres
+      - casagres_dataprotection_keys:/root/.aspnet/DataProtection-Keys
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: app_react
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  casagres_datos:
+  casagres_msal_cache:
+  casagres_dataprotection_keys:

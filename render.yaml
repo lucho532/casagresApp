@@ -1,0 +1,58 @@
+services:
+  # ------------------------------------------------------------
+  # Backend (.NET 9 + Python, vía Docker)
+  # ------------------------------------------------------------
+  - type: web
+    name: casagres-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Casagres.API/Dockerfile
+    dockerContext: .
+    envVars:
+      # Render espera por defecto que el servicio escuche en el puerto
+      # 10000; esto evita depender de la detección automática del puerto.
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+
+      # Secretos y configuración específica del entorno: se piden en el
+      # dashboard al crear el Blueprint (sync: false = no van en este
+      # archivo ni se versionan).
+      - key: ConnectionStrings__CadenaPostgres
+        sync: false
+      - key: Jwt__Key
+        sync: false
+      - key: OneDrive__CarpetaCompartidaUrl
+        sync: false
+      - key: Smtp__Host
+        sync: false
+      - key: Smtp__Puerto
+        sync: false
+      - key: Smtp__Usuario
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__RemitenteNombre
+        sync: false
+      - key: Frontend__Url
+        sync: false
+
+  # ------------------------------------------------------------
+  # Frontend (build estático de React con Vite)
+  # ------------------------------------------------------------
+  - type: web
+    name: casagres-frontend
+    runtime: static
+    rootDir: app_react
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Se incrusta en el build (Vite), así que cambiarla requiere volver
+      # a desplegar el sitio estático.
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      # Enrutamiento del lado del cliente (React Router-style): cualquier
+      # ruta que no sea un archivo real cae en index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
