@@ -42,9 +42,8 @@ services:
   - type: web
     name: casagres-frontend
     runtime: static
-    rootDir: app_react
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
+    buildCommand: cd app_react && npm ci && npm run build
+    staticPublishPath: app_react/dist
     envVars:
       # Se incrusta en el build (Vite), así que cambiarla requiere volver
       # a desplegar el sitio estático.
