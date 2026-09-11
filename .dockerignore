@@ -1,0 +1,27 @@
+# Compilados y artefactos locales
+**/bin/
+**/obj/
+**/node_modules/
+
+# Entorno virtual de Python del desarrollador (se reinstala dentro de la imagen)
+.venv/
+
+# Proyecto de pruebas (no se necesita en la imagen de producción)
+Casagres.API.Tests/
+
+# Frontend (tiene su propio Dockerfile / build)
+app_react/
+
+# Configuración local con secretos: NUNCA debe entrar en la imagen.
+# En producción toda esta configuración se pasa por variables de entorno.
+Casagres.API/appsettings.Development.json
+
+# Datos de negocio: se montan como volumen, no se hornean en la imagen.
+Casagres.API/proyecto_icmd/
+
+# Control de versiones y metadatos
+.git/
+.gitignore
+*.md
+Informe_Funcionalidad_CASAGRES.pdf
+api_log.txt

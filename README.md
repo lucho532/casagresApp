@@ -107,7 +107,26 @@ La información de cada producto puede utilizarse posteriormente para analizar s
 
 La plataforma dispone de una sección destinada a la visualización de información mediante **Power BI**.
 
-Esta sección complementa los análisis realizados directamente dentro de la aplicación con dashboards y visualizaciones adicionales.
+Esta sección complementa los análisis realizados directamente dentro de la aplicación con dashboards y visualizaciones adicionales, permitiendo administrar (agregar y eliminar) los tableros disponibles.
+
+---
+
+## 👤 Administración de usuarios
+
+Sección disponible únicamente para usuarios con rol **administrador**.
+
+Permite:
+
+* Consultar el listado de usuarios registrados.
+* Cambiar el rol de un usuario (`admin`, `usuario`, `pendiente`).
+* Activar o desactivar cuentas.
+* Eliminar usuarios (los tokens de verificación/recuperación asociados se eliminan en cascada).
+
+---
+
+## ⏳ Cuenta pendiente de aprobación
+
+Cuando un usuario nuevo se registra, su cuenta queda con el rol **pendiente** hasta que un administrador le asigna acceso. Mientras tanto, al iniciar sesión se le muestra una pantalla informativa en lugar del dashboard, evitando que vea información comercial sin autorización.
 
 ---
 
@@ -258,10 +277,10 @@ La aplicación está dividida principalmente en tres componentes:
 * **.NET 9**
 * **ASP.NET Core**
 * **Entity Framework Core 9**
-* **SQL Server**
-* **PostgreSQL**
-* **JWT**
-* **Microsoft Graph**
+* **PostgreSQL** (Npgsql)
+* **JWT** — autenticación basada en tokens.
+* **Microsoft Graph API** (vía `HttpClient`, sin el SDK) — acceso a OneDrive.
+* **MSAL.NET** — autenticación de la cuenta de Microsoft usada para OneDrive.
 * **ClosedXML**
 * **BCrypt**
 
@@ -286,6 +305,7 @@ Dependencias principales:
 ```text
 @azure/msal-browser       5.21.0
 @azure/msal-react         5.7.0
+@react-oauth/google       0.13.5
 axios                     1.20.0
 react                     19.2.8
 react-dom                 19.2.8
@@ -296,6 +316,9 @@ Dependencias de desarrollo:
 
 ```text
 @eslint/js
+@testing-library/jest-dom
+@testing-library/react
+@testing-library/user-event
 @types/react
 @types/react-dom
 @vitejs/plugin-react
@@ -303,7 +326,9 @@ eslint
 eslint-plugin-react-hooks
 eslint-plugin-react-refresh
 globals
+jsdom
 vite
+vitest
 ```
 
 ---
@@ -317,9 +342,7 @@ BCrypt.Net-Next                                  4.0.3
 ClosedXML                                        0.105.1
 Microsoft.AspNetCore.Authentication.JwtBearer   9.0.8
 Microsoft.AspNetCore.OpenApi                    9.0.19
-Microsoft.EntityFrameworkCore.SqlServer         9.0.19
 Microsoft.EntityFrameworkCore.Tools              9.0.19
-Microsoft.Graph                                  6.5.0
 Microsoft.Identity.Client                        4.88.0
 Microsoft.Identity.Client.Extensions.Msal       4.88.0
 Microsoft.IdentityModel.Protocols.OpenIdConnect 8.22.0
@@ -345,6 +368,8 @@ scikit-learn==1.9.0
 scipy==1.18.1
 openpyxl==3.1.5
 requests==2.34.2
+bcrypt==5.0.0
+psycopg2-binary==2.9.13
 ```
 
 Otras dependencias instaladas en el entorno:
@@ -373,12 +398,26 @@ yarg==0.1.10
 
 La aplicación incorpora mecanismos de autenticación y autorización.
 
-El backend utiliza:
+## Inicio de sesión y registro
 
-* JWT para autenticación mediante tokens.
-* BCrypt para el procesamiento seguro de contraseñas.
-* Microsoft Identity / MSAL para integración con servicios de Microsoft.
-* Control de acceso mediante roles.
+* El registro solo requiere **nombre, correo electrónico y contraseña** (no existe un campo de usuario independiente).
+* El inicio de sesión se realiza con **correo electrónico y contraseña**.
+* También es posible iniciar sesión con **Google** o **Microsoft** (OAuth).
+* Tras el registro se envía un **correo de verificación**; la cuenta debe verificarse antes de poder iniciar sesión.
+* Existe un flujo de **recuperación de contraseña** mediante un enlace enviado por correo (con expiración).
+
+## Roles y control de acceso
+
+* **admin** — acceso completo, incluida la administración de usuarios.
+* **usuario** — acceso a los datos y análisis de la plataforma.
+* **pendiente** — rol asignado automáticamente a las cuentas nuevas hasta que un administrador las aprueba; no tiene acceso a datos comerciales.
+
+## Seguridad
+
+* JWT para autenticación mediante tokens (con revalidación del usuario en cada solicitud, por si su cuenta fue desactivada o eliminada).
+* BCrypt para el hash de contraseñas.
+* Microsoft Identity / MSAL para la integración con OneDrive y Microsoft Graph.
+* Envío de correo transaccional (verificación de cuenta y recuperación de contraseña) mediante SMTP.
 
 La interfaz adapta las opciones disponibles según el rol del usuario.
 
@@ -388,15 +427,46 @@ La interfaz adapta las opciones disponibles según el rol del usuario.
 
 El frontend se comunica con el backend mediante una API REST.
 
-Entre los servicios utilizados actualmente se encuentran:
+Entre los servicios disponibles actualmente se encuentran:
 
 ```text
+# Pronóstico
+GET  /api/Pronostico/pronostico
+GET  /api/Pronostico/pronostico-intervalos
+GET  /api/Pronostico/metodos
 GET  /api/Pronostico/dashboard
 GET  /api/Pronostico/historico
-POST /api/Actualizacion/actualizar
+
+# Actualización de datos
 GET  /api/Actualizacion/estado
+POST /api/Actualizacion/ejecutar
+POST /api/Actualizacion/actualizar
+GET  /api/Actualizacion/probar-onedrive
+
+# Productos
 GET  /api/Productos
+
+# Power BI
+GET    /api/PowerBi
+POST   /api/PowerBi
+DELETE /api/PowerBi/{id}
+
+# Autenticación
+GET  /api/auth/perfil
 POST /api/auth/login
+POST /api/auth/registro
+POST /api/auth/microsoft
+POST /api/auth/google
+POST /api/auth/solicitar-reset
+POST /api/auth/restablecer-password
+POST /api/auth/verificar-email
+POST /api/auth/reenviar-verificacion
+
+# Administración (solo rol admin)
+GET    /api/Administracion/usuarios
+PUT    /api/Administracion/usuarios/{id}/rol
+PUT    /api/Administracion/usuarios/{id}/estado
+DELETE /api/Administracion/usuarios/{id}
 ```
 
 La API proporciona al frontend la información necesaria para construir los dashboards y controlar los procesos de actualización.
@@ -433,16 +503,17 @@ El usuario puede seleccionar el horizonte de predicción antes de iniciar el pro
 
 # ⚙️ Requisitos
 
-Para ejecutar el proyecto se requiere disponer de:
+El backend es **multiplataforma** (probado en Windows y en Linux, incluyendo contenedores Docker). Para ejecutar el proyecto se requiere disponer de:
 
-* Windows.
 * .NET 9 SDK.
 * Node.js y npm.
-* Python.
-* Entorno virtual Python.
-* Acceso a las fuentes de datos utilizadas por el pipeline.
-* Configuración correspondiente de la base de datos.
-* Configuración de autenticación y servicios externos cuando corresponda.
+* Python 3 con un entorno virtual.
+* PostgreSQL.
+* Acceso a las fuentes de datos utilizadas por el pipeline (carpeta compartida de OneDrive).
+* Configuración correspondiente de la base de datos (`ConnectionStrings:CadenaPostgres`).
+* Configuración de autenticación y servicios externos (JWT, Google/Microsoft OAuth, SMTP) mediante `appsettings.json` o variables de entorno.
+
+> En Linux, si no hay un keyring disponible (por ejemplo dentro de un contenedor), el caché de tokens de Microsoft se guarda sin cifrar en disco como respaldo automático.
 
 ---
 
@@ -536,6 +607,28 @@ npm run preview
 ```
 
 Permite visualizar localmente la versión construida.
+
+---
+
+# 🧪 Pruebas automatizadas
+
+El proyecto cuenta con pruebas automatizadas tanto en el backend como en el frontend.
+
+## Backend (xUnit + Moq)
+
+Desde `Casagres.API/`:
+
+```powershell
+dotnet test
+```
+
+## Frontend (Vitest + React Testing Library)
+
+Desde `app_react/`:
+
+```powershell
+npm test
+```
 
 ---
 

@@ -11,8 +11,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactPolicy", policy =>
     {
+        var frontendUrl =
+            builder.Configuration["Frontend:Url"] ?? "http://localhost:5173";
+
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins(frontendUrl)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
