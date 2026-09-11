@@ -585,6 +585,11 @@ function Login({ iniciarSesionCorrectamente }) {
               ¿Ya tienes una cuenta? Inicia sesión
             </button>
           </form>
+        ) : cargando ? (
+          <div className="estado-cargando">
+            <div className="spinner" />
+            <p>Iniciando sesión...</p>
+          </div>
         ) : (
           <form onSubmit={manejarLogin}>
             <div className="login-campo">
