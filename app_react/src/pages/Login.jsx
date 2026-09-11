@@ -600,7 +600,7 @@ function Login({ iniciarSesionCorrectamente }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Ingrese su correo electrónico"
-                autoComplete="email"
+                autoComplete="off"
               />
             </div>
 
@@ -612,7 +612,7 @@ function Login({ iniciarSesionCorrectamente }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingrese su contraseña"
-                autoComplete="current-password"
+                autoComplete="off"
               />
             </div>
 
