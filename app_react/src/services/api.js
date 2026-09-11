@@ -134,9 +134,9 @@ export const obtenerProductos = async () => {
    AUTENTICACIÓN
    ========================================================= */
 
-export const iniciarSesion = async (usuario, password) => {
+export const iniciarSesion = async (email, password) => {
   const respuesta = await api.post("/auth/login", {
-    usuario,
+    email,
     password,
   });
 
@@ -150,13 +150,11 @@ export const obtenerPerfil = async () => {
 
 
 export const registrarUsuario = async (
-  usuario,
   password,
   nombre,
   email
 ) => {
   const respuesta = await api.post("/auth/registro", {
-    usuario,
     password,
     nombre,
     email,

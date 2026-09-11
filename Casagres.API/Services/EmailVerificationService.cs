@@ -56,6 +56,8 @@ public class EmailVerificationService : IEmailVerificationService
 
     public async Task ReenviarSiNoVerificadoAsync(string email)
     {
+        email = email.Trim();
+
         var usuario = await _db.Usuarios
             .FirstOrDefaultAsync(u => u.Email == email && u.Activo);
 

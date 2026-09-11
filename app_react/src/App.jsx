@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -41,12 +41,13 @@ function App() {
   // válido hasta por 2 horas. El perfil, en cambio, se consulta al
   // backend y siempre refleja el rol y el estado actuales.
   const [perfil, setPerfil] = useState(null);
-  const [cargandoPerfil, setCargandoPerfil] = useState(true);
+  const [cargandoPerfil, setCargandoPerfil] = useState(autenticado);
 
   useEffect(() => {
+    // Sin sesión no hay perfil que cargar: la pantalla de login se
+    // muestra sin importar el valor de cargandoPerfil/perfil (ver el
+    // "if (!autenticado)" más abajo, antes de leer cualquiera de los dos).
     if (!autenticado) {
-      setPerfil(null);
-      setCargandoPerfil(false);
       return;
     }
 
@@ -187,9 +188,12 @@ function App() {
     }
   };
 
-  const recargarDashboard = () => {
+  // useCallback con dependencias vacías: ControlActualizacion depende de
+  // que esta referencia sea estable entre renders para poder incluirla
+  // en su propio arreglo de dependencias sin re-disparar su efecto.
+  const recargarDashboard = useCallback(() => {
     window.location.reload();
-  };
+  }, []);
 
   if (!autenticado) {
     return <Login iniciarSesionCorrectamente={() => setAutenticado(true)} />;

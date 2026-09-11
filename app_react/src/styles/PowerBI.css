@@ -69,16 +69,6 @@
   color: var(--texto-secundario);
 }
 
-.powerbi-estado {
-  display: inline-block;
-  padding: 7px 13px;
-  border-radius: 15px;
-  background: #f9eddc;
-  color: var(--advertencia);
-  font-size: 10px;
-  font-weight: 700;
-}
-
 /* =========================================
    BARRA DE TABLEROS
 ========================================= */

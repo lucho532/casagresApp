@@ -167,19 +167,9 @@ public class AdministracionController : ControllerBase
             });
         }
 
-        // Los tokens de reset/verificación referencian al usuario y no
-        // tienen borrado en cascada en la base de datos: hay que
-        // eliminarlos primero para no violar la llave foránea.
-        var tokensReset = await _db.PasswordResetTokens
-            .Where(t => t.UsuarioId == id)
-            .ToListAsync();
-
-        var tokensVerificacion = await _db.EmailVerificationTokens
-            .Where(t => t.UsuarioId == id)
-            .ToListAsync();
-
-        _db.PasswordResetTokens.RemoveRange(tokensReset);
-        _db.EmailVerificationTokens.RemoveRange(tokensVerificacion);
+        // Los tokens de reset/verificación tienen borrado en cascada a
+        // nivel de base de datos (ON DELETE CASCADE): Postgres los
+        // elimina automáticamente al borrar el usuario.
         _db.Usuarios.Remove(usuario);
 
         await _db.SaveChangesAsync();

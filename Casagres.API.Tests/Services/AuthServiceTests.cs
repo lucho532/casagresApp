@@ -66,7 +66,8 @@ public class AuthServiceTests
 
         db.Usuarios.Add(new Usuario
         {
-            UsuarioNombre = "jperez",
+            UsuarioNombre = "jperez@ejemplo.com",
+            Email = "jperez@ejemplo.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("clave123"),
             Nombre = "Juan Pérez",
             Rol = "admin",
@@ -77,23 +78,45 @@ public class AuthServiceTests
 
         var servicio = CrearServicio(db);
 
-        var token = await servicio.LoginAsync("jperez", "clave123");
+        var token = await servicio.LoginAsync("jperez@ejemplo.com", "clave123");
 
         Assert.NotNull(token);
 
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        Assert.Equal("jperez", jwt.Claims.Single(c => c.Type == ClaimTypes.Name).Value);
+        Assert.Equal("jperez@ejemplo.com", jwt.Claims.Single(c => c.Type == ClaimTypes.Name).Value);
         Assert.Equal("admin", jwt.Claims.Single(c => c.Type == ClaimTypes.Role).Value);
         Assert.Equal("Juan Pérez", jwt.Claims.Single(c => c.Type == "nombre").Value);
     }
 
     [Fact]
-    public async Task LoginAsync_ConUsuarioInexistente_DevuelveNull()
+    public async Task LoginAsync_ConEspaciosAlrededorDelCorreo_IgualEncuentraLaCuenta()
+    {
+        await using var db = CrearContexto();
+
+        db.Usuarios.Add(new Usuario
+        {
+            UsuarioNombre = "jperez@ejemplo.com",
+            Email = "jperez@ejemplo.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("clave123"),
+            Activo = true,
+            EmailVerificado = true
+        });
+        await db.SaveChangesAsync();
+
+        var servicio = CrearServicio(db);
+
+        var token = await servicio.LoginAsync("  jperez@ejemplo.com  ", "clave123");
+
+        Assert.NotNull(token);
+    }
+
+    [Fact]
+    public async Task LoginAsync_ConCorreoInexistente_DevuelveNull()
     {
         await using var db = CrearContexto();
         var servicio = CrearServicio(db);
 
-        var token = await servicio.LoginAsync("no-existe", "clave123");
+        var token = await servicio.LoginAsync("no-existe@ejemplo.com", "clave123");
 
         Assert.Null(token);
     }
@@ -105,7 +128,8 @@ public class AuthServiceTests
 
         db.Usuarios.Add(new Usuario
         {
-            UsuarioNombre = "jperez",
+            UsuarioNombre = "jperez@ejemplo.com",
+            Email = "jperez@ejemplo.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("clave123"),
             Activo = false
         });
@@ -113,7 +137,7 @@ public class AuthServiceTests
 
         var servicio = CrearServicio(db);
 
-        var token = await servicio.LoginAsync("jperez", "clave123");
+        var token = await servicio.LoginAsync("jperez@ejemplo.com", "clave123");
 
         Assert.Null(token);
     }
@@ -125,7 +149,8 @@ public class AuthServiceTests
 
         db.Usuarios.Add(new Usuario
         {
-            UsuarioNombre = "jperez",
+            UsuarioNombre = "jperez@ejemplo.com",
+            Email = "jperez@ejemplo.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("clave-correcta"),
             Activo = true
         });
@@ -133,7 +158,7 @@ public class AuthServiceTests
 
         var servicio = CrearServicio(db);
 
-        var token = await servicio.LoginAsync("jperez", "clave-incorrecta");
+        var token = await servicio.LoginAsync("jperez@ejemplo.com", "clave-incorrecta");
 
         Assert.Null(token);
     }
@@ -145,7 +170,8 @@ public class AuthServiceTests
 
         db.Usuarios.Add(new Usuario
         {
-            UsuarioNombre = "jperez",
+            UsuarioNombre = "jperez@ejemplo.com",
+            Email = "jperez@ejemplo.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("clave123"),
             Activo = true,
             EmailVerificado = false
@@ -155,7 +181,7 @@ public class AuthServiceTests
         var servicio = CrearServicio(db);
 
         await Assert.ThrowsAsync<EmailNoVerificadoException>(
-            () => servicio.LoginAsync("jperez", "clave123"));
+            () => servicio.LoginAsync("jperez@ejemplo.com", "clave123"));
     }
 
     [Fact]
@@ -165,7 +191,8 @@ public class AuthServiceTests
 
         db.Usuarios.Add(new Usuario
         {
-            UsuarioNombre = "jperez",
+            UsuarioNombre = "jperez@ejemplo.com",
+            Email = "jperez@ejemplo.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("clave123"),
             Activo = true,
             EmailVerificado = true
@@ -175,7 +202,7 @@ public class AuthServiceTests
         var servicio = CrearServicio(db, claveJwt: null);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => servicio.LoginAsync("jperez", "clave123"));
+            () => servicio.LoginAsync("jperez@ejemplo.com", "clave123"));
     }
 
     // ============================================================
@@ -189,16 +216,43 @@ public class AuthServiceTests
         var servicio = CrearServicio(db);
 
         var resultado = await servicio.RegistrarAsync(
-            "nuevo_usuario", "clave123", "Nombre Apellido", "correo@ejemplo.com");
+            "clave123", "Nombre Apellido", "correo@ejemplo.com");
 
         Assert.True(resultado);
 
-        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.UsuarioNombre == "nuevo_usuario");
+        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.Email == "correo@ejemplo.com");
         Assert.Equal("Nombre Apellido", usuarioCreado.Nombre);
-        Assert.Equal("correo@ejemplo.com", usuarioCreado.Email);
         Assert.True(usuarioCreado.Activo);
         Assert.Equal(Roles.Pendiente, usuarioCreado.Rol);
         Assert.False(usuarioCreado.EmailVerificado);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_UsaElCorreoComoNombreDeUsuarioInterno()
+    {
+        await using var db = CrearContexto();
+        var servicio = CrearServicio(db);
+
+        await servicio.RegistrarAsync("clave123", "Nombre Apellido", "correo@ejemplo.com");
+
+        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.Email == "correo@ejemplo.com");
+        Assert.Equal("correo@ejemplo.com", usuarioCreado.UsuarioNombre);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_ConEspaciosAlrededorDeLosCampos_LosGuardaRecortados()
+    {
+        await using var db = CrearContexto();
+        var servicio = CrearServicio(db);
+
+        var resultado = await servicio.RegistrarAsync(
+            "clave123", "  Nombre Apellido  ", "  correo@ejemplo.com  ");
+
+        Assert.True(resultado);
+
+        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.Email == "correo@ejemplo.com");
+        Assert.Equal("Nombre Apellido", usuarioCreado.Nombre);
+        Assert.Equal("correo@ejemplo.com", usuarioCreado.Email);
     }
 
     [Fact]
@@ -209,12 +263,11 @@ public class AuthServiceTests
         var emailVerificationService = new Mock<IEmailVerificationService>();
         var servicio = CrearServicio(db, emailVerificationService: emailVerificationService.Object);
 
-        await servicio.RegistrarAsync(
-            "nuevo_usuario", "clave123", "Nombre Apellido", "correo@ejemplo.com");
+        await servicio.RegistrarAsync("clave123", "Nombre Apellido", "correo@ejemplo.com");
 
         emailVerificationService.Verify(
             s => s.EnviarCorreoDeVerificacionAsync(
-                It.Is<Usuario>(u => u.UsuarioNombre == "nuevo_usuario")),
+                It.Is<Usuario>(u => u.Email == "correo@ejemplo.com")),
             Times.Once);
     }
 
@@ -231,10 +284,10 @@ public class AuthServiceTests
         var servicio = CrearServicio(db, emailVerificationService: emailVerificationService.Object);
 
         var resultado = await servicio.RegistrarAsync(
-            "nuevo_usuario", "clave123", "Nombre Apellido", "correo@ejemplo.com");
+            "clave123", "Nombre Apellido", "correo@ejemplo.com");
 
         Assert.True(resultado);
-        Assert.True(await db.Usuarios.AnyAsync(u => u.UsuarioNombre == "nuevo_usuario"));
+        Assert.True(await db.Usuarios.AnyAsync(u => u.Email == "correo@ejemplo.com"));
     }
 
     [Fact]
@@ -243,27 +296,11 @@ public class AuthServiceTests
         await using var db = CrearContexto();
         var servicio = CrearServicio(db);
 
-        await servicio.RegistrarAsync("nuevo_usuario", "clave123", null, null);
+        await servicio.RegistrarAsync("clave123", "Nombre", "correo@ejemplo.com");
 
-        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.UsuarioNombre == "nuevo_usuario");
+        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.Email == "correo@ejemplo.com");
         Assert.NotEqual("clave123", usuarioCreado.PasswordHash);
         Assert.True(BCrypt.Net.BCrypt.Verify("clave123", usuarioCreado.PasswordHash));
-    }
-
-    [Fact]
-    public async Task RegistrarAsync_ConNombreDeUsuarioYaExistente_DevuelveFalseYNoDuplica()
-    {
-        await using var db = CrearContexto();
-
-        db.Usuarios.Add(new Usuario { UsuarioNombre = "jperez", PasswordHash = "hash-existente" });
-        await db.SaveChangesAsync();
-
-        var servicio = CrearServicio(db);
-
-        var resultado = await servicio.RegistrarAsync("jperez", "otra-clave", null, null);
-
-        Assert.False(resultado);
-        Assert.Equal(1, await db.Usuarios.CountAsync());
     }
 
     [Fact]
@@ -273,7 +310,7 @@ public class AuthServiceTests
 
         db.Usuarios.Add(new Usuario
         {
-            UsuarioNombre = "usuario_existente",
+            UsuarioNombre = "correo@ejemplo.com",
             PasswordHash = "hash-existente",
             Email = "correo@ejemplo.com"
         });
@@ -282,20 +319,10 @@ public class AuthServiceTests
         var servicio = CrearServicio(db);
 
         var resultado = await servicio.RegistrarAsync(
-            "usuario_nuevo", "clave123", "Nombre", "correo@ejemplo.com");
+            "clave123", "Nombre", "correo@ejemplo.com");
 
         Assert.False(resultado);
-    }
-
-    [Fact]
-    public async Task RegistrarAsync_SinEmail_NoValidaDuplicadosDeEmail()
-    {
-        await using var db = CrearContexto();
-        var servicio = CrearServicio(db);
-
-        var resultado = await servicio.RegistrarAsync("usuario_uno", "clave123", "Nombre", null);
-
-        Assert.True(resultado);
+        Assert.Equal(1, await db.Usuarios.CountAsync());
     }
 
     // ============================================================

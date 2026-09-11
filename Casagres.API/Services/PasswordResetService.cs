@@ -34,6 +34,8 @@ public class PasswordResetService : IPasswordResetService
 
     public async Task SolicitarResetAsync(string email)
     {
+        email = email.Trim();
+
         var usuario = await _db.Usuarios
             .FirstOrDefaultAsync(u => u.Email == email && u.Activo);
 

@@ -62,13 +62,15 @@ public class AuthService : IAuthService
         await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
 
     // ============================================================
-    // LOGIN CON USUARIO Y CONTRASEÑA
+    // LOGIN CON CORREO Y CONTRASEÑA
     // ============================================================
 
-    public async Task<string?> LoginAsync(string usuario, string password)
+    public async Task<string?> LoginAsync(string email, string password)
     {
+        email = email.Trim();
+
         var usuarioDb = await _db.Usuarios
-            .FirstOrDefaultAsync(u => u.UsuarioNombre == usuario && u.Activo);
+            .FirstOrDefaultAsync(u => u.Email == email && u.Activo);
 
         if (usuarioDb == null)
             return null;
@@ -85,33 +87,26 @@ public class AuthService : IAuthService
     }
 
     public async Task<bool> RegistrarAsync(
-        string usuario,
         string password,
-        string? nombre,
-        string? email)
+        string nombre,
+        string email)
     {
-        var usuarioExiste = await _db.Usuarios
-            .AnyAsync(u => u.UsuarioNombre == usuario);
+        nombre = nombre.Trim();
+        email = email.Trim();
 
-        if (usuarioExiste)
+        var emailExiste = await _db.Usuarios
+            .AnyAsync(u => u.Email == email);
+
+        if (emailExiste)
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(email))
-        {
-            var emailExiste = await _db.Usuarios
-                .AnyAsync(u => u.Email == email);
-
-            if (emailExiste)
-            {
-                return false;
-            }
-        }
+        var usuarioNombre = await GenerarNombreUsuarioUnicoAsync(email, sufijoUsuario: "registro");
 
         var nuevoUsuario = new Usuario
         {
-            UsuarioNombre = usuario,
+            UsuarioNombre = usuarioNombre,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             Nombre = nombre,
             Email = email,

@@ -43,13 +43,6 @@
   color: var(--texto-secundario);
 }
 
-.header-derecha {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  min-width: 300px;
-}
-
 /* USUARIO EN HEADER */
 .header-usuario {
   display: flex;
@@ -103,21 +96,6 @@
   align-items: center;
   gap: 5px;
 }
-
-.header-usuario-info .icono-actualizar {
-  font-size: 13px;
-}
-
-.header-derecha .estado-actualizacion {
-  width: 100%;
-  margin-top: 8px;
-  text-align: right;
-  font-size: 11px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
 
 
 @media (max-width: 550px) {

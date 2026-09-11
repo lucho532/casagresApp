@@ -26,7 +26,6 @@ function Login({ iniciarSesionCorrectamente }) {
   const [modoRegistro, setModoRegistro] = useState(false);
   const [modoRecuperar, setModoRecuperar] = useState(false);
 
-  const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -151,8 +150,8 @@ function Login({ iniciarSesionCorrectamente }) {
     setError("");
     setMensaje("");
 
-    if (!usuario.trim() || !password.trim()) {
-      setError("Usuario y contraseña son obligatorios.");
+    if (!email.trim() || !password.trim()) {
+      setError("Correo electrónico y contraseña son obligatorios.");
       return;
     }
 
@@ -161,7 +160,7 @@ function Login({ iniciarSesionCorrectamente }) {
     try {
       setCargando(true);
 
-      const respuesta = await iniciarSesion(usuario, password);
+      const respuesta = await iniciarSesion(email.trim(), password);
 
       sessionStorage.setItem("token", respuesta.token);
 
@@ -173,7 +172,7 @@ function Login({ iniciarSesionCorrectamente }) {
         setError(err.response.data.mensaje);
         setEmailNoVerificado(err.response.data.email || "");
       } else if (err.response?.status === 401) {
-        setError("Usuario o contraseña incorrectos.");
+        setError("Correo electrónico o contraseña incorrectos.");
       } else {
         setError("No fue posible conectar con el servidor.");
       }
@@ -275,7 +274,7 @@ function Login({ iniciarSesionCorrectamente }) {
     try {
       setCargando(true);
 
-      const respuesta = await solicitarResetPassword(emailRecuperacion);
+      const respuesta = await solicitarResetPassword(emailRecuperacion.trim());
 
       setMensaje(
         respuesta.mensaje ||
@@ -358,13 +357,12 @@ function Login({ iniciarSesionCorrectamente }) {
     setMensaje("");
 
     if (
-      !usuario.trim() ||
       !password.trim() ||
       !nombre.trim() ||
       !email.trim()
     ) {
       setError(
-        "Usuario, contraseña, nombre y correo electrónico son obligatorios.",
+        "Nombre, correo electrónico y contraseña son obligatorios.",
       );
       return;
     }
@@ -372,7 +370,11 @@ function Login({ iniciarSesionCorrectamente }) {
     try {
       setCargando(true);
 
-      const respuesta = await registrarUsuario(usuario, password, nombre, email);
+      const respuesta = await registrarUsuario(
+        password,
+        nombre.trim(),
+        email.trim(),
+      );
 
       setMensaje(
         respuesta.mensaje ||
@@ -388,7 +390,7 @@ function Login({ iniciarSesionCorrectamente }) {
       console.error(err);
 
       if (err.response?.status === 409) {
-        setError("El usuario o correo electrónico ya existe.");
+        setError("Ese correo electrónico ya está registrado.");
       } else {
         setError("No fue posible crear el usuario.");
       }
@@ -403,7 +405,6 @@ function Login({ iniciarSesionCorrectamente }) {
     setError("");
     setMensaje("");
 
-    setUsuario("");
     setPassword("");
     setNombre("");
     setEmail("");
@@ -557,18 +558,6 @@ function Login({ iniciarSesionCorrectamente }) {
             </div>
 
             <div className="login-campo">
-              <label>Usuario</label>
-
-              <input
-                type="text"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                placeholder="Ingrese su usuario"
-                autoComplete="username"
-              />
-            </div>
-
-            <div className="login-campo">
               <label>Contraseña</label>
 
               <input
@@ -599,14 +588,14 @@ function Login({ iniciarSesionCorrectamente }) {
         ) : (
           <form onSubmit={manejarLogin}>
             <div className="login-campo">
-              <label>Usuario</label>
+              <label>Correo electrónico</label>
 
               <input
-                type="text"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
-                placeholder="Ingrese su usuario"
-                autoComplete="username"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ingrese su correo electrónico"
+                autoComplete="email"
               />
             </div>
 

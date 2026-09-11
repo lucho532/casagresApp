@@ -70,26 +70,26 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login(
             [FromBody] LoginRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Usuario) ||
+        if (string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
             return BadRequest(new
             {
-                mensaje = "Usuario y contraseña son obligatorios."
+                mensaje = "Correo electrónico y contraseña son obligatorios."
             });
         }
 
         try
         {
             var token = await _authService.LoginAsync(
-                request.Usuario,
+                request.Email,
                 request.Password);
 
             if (token == null)
             {
                 return Unauthorized(new
                 {
-                    mensaje = "Usuario o contraseña incorrectos."
+                    mensaje = "Correo electrónico o contraseña incorrectos."
                 });
             }
 
@@ -115,8 +115,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Registro(
         [FromBody] RegistroRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Usuario) ||
-            string.IsNullOrWhiteSpace(request.Password) ||
+        if (string.IsNullOrWhiteSpace(request.Password) ||
             string.IsNullOrWhiteSpace(request.Nombre) ||
             string.IsNullOrWhiteSpace(request.Email))
         {
@@ -127,7 +126,6 @@ public class AuthController : ControllerBase
         }
 
         var registrado = await _authService.RegistrarAsync(
-            request.Usuario,
             request.Password,
             request.Nombre,
             request.Email);
@@ -136,7 +134,7 @@ public class AuthController : ControllerBase
         {
             return Conflict(new
             {
-                mensaje = "El usuario o correo electrónico ya existe."
+                mensaje = "Ese correo electrónico ya está registrado."
             });
         }
 

@@ -94,16 +94,7 @@ public class MicrosoftAuthService : IMicrosoftAuthService
 
         Directory.CreateDirectory(cacheDirectory);
 
-        var storageProperties =
-            new StorageCreationPropertiesBuilder(
-                "msal.cache",
-                cacheDirectory)
-            .Build();
-
-        var cacheHelper =
-            MsalCacheHelper.CreateAsync(storageProperties)
-                .GetAwaiter()
-                .GetResult();
+        var cacheHelper = CrearCacheHelper(cacheDirectory);
 
         //Aquí creas la aplicación de autenticación de Microsoft
         _app = PublicClientApplicationBuilder
@@ -114,6 +105,56 @@ public class MicrosoftAuthService : IMicrosoftAuthService
             .Build();
 
         cacheHelper.RegisterCache(_app.UserTokenCache);
+    }
+
+    // En Windows y macOS el sistema operativo siempre puede proteger el
+    // caché (DPAPI / Keychain). En Linux depende de que haya un keyring
+    // disponible por D-Bus (GNOME Keyring, KWallet, etc.); muchos
+    // servidores y contenedores no lo tienen, así que si falla se usa un
+    // archivo sin cifrar como respaldo en vez de que la aplicación no
+    // arranque.
+    private static MsalCacheHelper CrearCacheHelper(string cacheDirectory)
+    {
+        var propiedadesProtegidas =
+            new StorageCreationPropertiesBuilder("msal.cache", cacheDirectory)
+                .WithLinuxKeyring(
+                    schemaName: "com.casagres.msalcache",
+                    collection: "default",
+                    secretLabel: "Caché de tokens de Microsoft de CASAGRES",
+                    attribute1: new KeyValuePair<string, string>("Version", "1"),
+                    attribute2: new KeyValuePair<string, string>("ProductGroup", "CASAGRES"))
+                .WithMacKeyChain(
+                    "casagres_msal_service",
+                    "casagres_msal_account")
+                .Build();
+
+        var cacheHelper =
+            MsalCacheHelper.CreateAsync(propiedadesProtegidas)
+                .GetAwaiter()
+                .GetResult();
+
+        try
+        {
+            cacheHelper.VerifyPersistence();
+
+            return cacheHelper;
+        }
+        catch (MsalCachePersistenceException)
+        {
+            Console.WriteLine(
+                "Aviso: no hay un almacén seguro de credenciales disponible en " +
+                "este sistema (falta un keyring en Linux). El caché de tokens " +
+                "de Microsoft se guardará sin cifrar en disco.");
+
+            var propiedadesSinCifrar =
+                new StorageCreationPropertiesBuilder("msal.cache", cacheDirectory)
+                    .WithLinuxUnprotectedFile()
+                    .Build();
+
+            return MsalCacheHelper.CreateAsync(propiedadesSinCifrar)
+                .GetAwaiter()
+                .GetResult();
+        }
     }
 
     public async Task<string> ObtenerTokenAsync()

@@ -19,7 +19,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IExcelExportService, ExcelExportService>();
 builder.Services.AddScoped<RutasDatosService>();
 builder.Services.AddScoped<IPronosticoCsvService, PronosticoCsvService>();
 builder.Services.AddScoped<IPronosticoIntervalosCsvService, PronosticoIntervalosCsvService>();

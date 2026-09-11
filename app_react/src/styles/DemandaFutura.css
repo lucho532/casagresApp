@@ -380,24 +380,3 @@
     gap: 5px;
   }
 }
-
-.selectores-demanda {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.selector-mes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.selector-mes label {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.selector-mes select {
-  min-width: 150px;
-}

@@ -41,10 +41,11 @@ public class AuthControllerTests
     [Fact]
     public async Task Login_ConCredencialesValidas_DevuelveOkConElToken()
     {
-        _authService.Setup(s => s.LoginAsync("jperez", "clave123")).ReturnsAsync("un-token-jwt");
+        _authService.Setup(s => s.LoginAsync("jperez@ejemplo.com", "clave123")).ReturnsAsync("un-token-jwt");
 
         var resultado = Assert.IsType<OkObjectResult>(
-            await CrearController().Login(new LoginRequest { Usuario = "jperez", Password = "clave123" }));
+            await CrearController().Login(
+                new LoginRequest { Email = "jperez@ejemplo.com", Password = "clave123" }));
 
         Assert.NotNull(resultado.Value);
     }
@@ -56,19 +57,19 @@ public class AuthControllerTests
             .ReturnsAsync((string?)null);
 
         var resultado = await CrearController().Login(
-            new LoginRequest { Usuario = "jperez", Password = "mala-clave" });
+            new LoginRequest { Email = "jperez@ejemplo.com", Password = "mala-clave" });
 
         Assert.IsType<UnauthorizedObjectResult>(resultado);
     }
 
     [Theory]
     [InlineData("", "clave123")]
-    [InlineData("jperez", "")]
+    [InlineData("jperez@ejemplo.com", "")]
     [InlineData(" ", " ")]
-    public async Task Login_ConCamposFaltantes_Devuelve400SinLlamarAlServicio(string usuario, string password)
+    public async Task Login_ConCamposFaltantes_Devuelve400SinLlamarAlServicio(string email, string password)
     {
         var resultado = await CrearController().Login(
-            new LoginRequest { Usuario = usuario, Password = password });
+            new LoginRequest { Email = email, Password = password });
 
         Assert.IsType<BadRequestObjectResult>(resultado);
         _authService.Verify(
@@ -82,7 +83,8 @@ public class AuthControllerTests
             .ThrowsAsync(new EmailNoVerificadoException("jperez@ejemplo.com"));
 
         var resultado = Assert.IsType<UnauthorizedObjectResult>(
-            await CrearController().Login(new LoginRequest { Usuario = "jperez", Password = "clave123" }));
+            await CrearController().Login(
+                new LoginRequest { Email = "jperez@ejemplo.com", Password = "clave123" }));
 
         Assert.NotNull(resultado.Value);
     }
@@ -147,12 +149,11 @@ public class AuthControllerTests
     public async Task Registro_ConDatosValidos_DevuelveOk()
     {
         _authService
-            .Setup(s => s.RegistrarAsync("nuevo", "clave123", "Nombre", "correo@ejemplo.com"))
+            .Setup(s => s.RegistrarAsync("clave123", "Nombre", "correo@ejemplo.com"))
             .ReturnsAsync(true);
 
         var resultado = await CrearController().Registro(new RegistroRequest
         {
-            Usuario = "nuevo",
             Password = "clave123",
             Nombre = "Nombre",
             Email = "correo@ejemplo.com"
@@ -162,16 +163,15 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task Registro_ConUsuarioOCorreoYaExistente_Devuelve409()
+    public async Task Registro_ConCorreoYaExistente_Devuelve409()
     {
         _authService
             .Setup(s => s.RegistrarAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(false);
 
         var resultado = await CrearController().Registro(new RegistroRequest
         {
-            Usuario = "existente",
             Password = "clave123",
             Nombre = "Nombre",
             Email = "correo@ejemplo.com"
@@ -185,7 +185,6 @@ public class AuthControllerTests
     {
         var resultado = await CrearController().Registro(new RegistroRequest
         {
-            Usuario = "nuevo",
             Password = "clave123",
             Nombre = "",
             Email = "correo@ejemplo.com"
@@ -194,7 +193,7 @@ public class AuthControllerTests
         Assert.IsType<BadRequestObjectResult>(resultado);
         _authService.Verify(
             s => s.RegistrarAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
     }
 

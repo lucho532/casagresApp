@@ -54,7 +54,11 @@ function PowerBI() {
   };
 
   useEffect(() => {
-    cargarTableros({ seleccionarMasReciente: true });
+    const cargarAlMontar = async () => {
+      await cargarTableros({ seleccionarMasReciente: true });
+    };
+
+    cargarAlMontar();
   }, []);
 
   // =========================================

@@ -9,7 +9,6 @@ namespace Casagres.API.Tests.Controllers;
 
 public class PronosticoControllerTests
 {
-    private readonly Mock<IExcelExportService> _excelExportService = new();
     private readonly Mock<IPronosticoCsvService> _pronosticoService = new();
     private readonly Mock<IPronosticoIntervalosCsvService> _intervalosService = new();
     private readonly Mock<IMetodosCsvService> _metodosService = new();
@@ -17,40 +16,11 @@ public class PronosticoControllerTests
     private readonly Mock<IHistoricoVentasService> _historicoService = new();
 
     private PronosticoController CrearController() => new(
-        _excelExportService.Object,
         _pronosticoService.Object,
         _intervalosService.Object,
         _metodosService.Object,
         _dashboardService.Object,
         _historicoService.Object);
-
-    // ============================================================
-    // GenerarCsv
-    // ============================================================
-
-    [Fact]
-    public async Task GenerarCsv_CuandoElServicioTieneExito_DevuelveOk()
-    {
-        _excelExportService
-            .Setup(s => s.GenerarCsvVentas())
-            .ReturnsAsync(new List<string> { @"C:\datos\Ventas_Casagres_2025.csv" });
-
-        var resultado = await CrearController().GenerarCsv();
-
-        Assert.IsType<OkObjectResult>(resultado);
-    }
-
-    [Fact]
-    public async Task GenerarCsv_CuandoElServicioLanzaExcepcion_Devuelve500()
-    {
-        _excelExportService
-            .Setup(s => s.GenerarCsvVentas())
-            .ThrowsAsync(new InvalidOperationException("No existen ventas en la base de datos."));
-
-        var resultado = Assert.IsType<ObjectResult>(await CrearController().GenerarCsv());
-
-        Assert.Equal(500, resultado.StatusCode);
-    }
 
     // ============================================================
     // ObtenerPronostico

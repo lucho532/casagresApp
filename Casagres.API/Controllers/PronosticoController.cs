@@ -11,7 +11,6 @@ namespace Casagres.API.Controllers;
 [Authorize(Roles = Roles.ConAccesoADatos)]
 public class PronosticoController : ControllerBase
 {
-    private readonly IExcelExportService _excelExportService;
     private readonly IPronosticoCsvService _pronosticoService;
     private readonly IPronosticoIntervalosCsvService _intervalosService;
     private readonly IMetodosCsvService _metodosService;
@@ -19,43 +18,17 @@ public class PronosticoController : ControllerBase
     private readonly IHistoricoVentasService _historicoService;
 
     public PronosticoController(
-        IExcelExportService excelExportService,
         IPronosticoCsvService pronosticoService,
         IPronosticoIntervalosCsvService intervalosService,
         IMetodosCsvService metodosService,
         IDashboardPronosticoService dashboardService,
         IHistoricoVentasService historicoService)
     {
-        _excelExportService = excelExportService;
         _pronosticoService = pronosticoService;
         _intervalosService = intervalosService;
         _metodosService = metodosService;
         _dashboardService = dashboardService;
         _historicoService = historicoService;
-    }
-
-    [HttpGet("generar-csv")]
-    public async Task<IActionResult> GenerarCsv()
-    {
-        try
-        {
-            var rutasCsv = await _excelExportService.GenerarCsvVentas();
-
-            return Ok(new
-            {
-                mensaje = "CSV generados correctamente.",
-                archivos = rutasCsv.Select(Path.GetFileName),
-                rutas = rutasCsv
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                mensaje = "Error al generar los CSV.",
-                error = ex.Message
-            });
-        }
     }
 
     [HttpGet("pronostico")]

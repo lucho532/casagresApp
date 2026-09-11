@@ -57,7 +57,7 @@ describe("Login", () => {
     expect(screen.getByRole("button", { name: "Continuar con Microsoft" })).toBeInTheDocument();
   });
 
-  it("valida que usuario y contraseña sean obligatorios", async () => {
+  it("valida que correo y contraseña sean obligatorios", async () => {
     const usuario = userEvent.setup();
 
     render(<Login iniciarSesionCorrectamente={vi.fn()} />);
@@ -65,7 +65,7 @@ describe("Login", () => {
     await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
     expect(
-      await screen.findByText("Usuario y contraseña son obligatorios."),
+      await screen.findByText("Correo electrónico y contraseña son obligatorios."),
     ).toBeInTheDocument();
     expect(iniciarSesion).not.toHaveBeenCalled();
   });
@@ -77,7 +77,7 @@ describe("Login", () => {
 
     render(<Login iniciarSesionCorrectamente={iniciarSesionCorrectamente} />);
 
-    await usuario.type(screen.getByPlaceholderText("Ingrese su usuario"), "jperez");
+    await usuario.type(screen.getByPlaceholderText("Ingrese su correo electrónico"), "jperez@ejemplo.com");
     await usuario.type(screen.getByPlaceholderText("Ingrese su contraseña"), "clave123");
     await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
@@ -85,7 +85,7 @@ describe("Login", () => {
       expect(iniciarSesionCorrectamente).toHaveBeenCalledTimes(1),
     );
 
-    expect(iniciarSesion).toHaveBeenCalledWith("jperez", "clave123");
+    expect(iniciarSesion).toHaveBeenCalledWith("jperez@ejemplo.com", "clave123");
     expect(sessionStorage.getItem("token")).toBe("un-token-jwt");
   });
 
@@ -95,12 +95,12 @@ describe("Login", () => {
 
     render(<Login iniciarSesionCorrectamente={vi.fn()} />);
 
-    await usuario.type(screen.getByPlaceholderText("Ingrese su usuario"), "jperez");
+    await usuario.type(screen.getByPlaceholderText("Ingrese su correo electrónico"), "jperez@ejemplo.com");
     await usuario.type(screen.getByPlaceholderText("Ingrese su contraseña"), "mala-clave");
     await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
     expect(
-      await screen.findByText("Usuario o contraseña incorrectos."),
+      await screen.findByText("Correo electrónico o contraseña incorrectos."),
     ).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe("Login", () => {
 
     render(<Login iniciarSesionCorrectamente={vi.fn()} />);
 
-    await usuario.type(screen.getByPlaceholderText("Ingrese su usuario"), "jperez");
+    await usuario.type(screen.getByPlaceholderText("Ingrese su correo electrónico"), "jperez@ejemplo.com");
     await usuario.type(screen.getByPlaceholderText("Ingrese su contraseña"), "clave123");
     await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
@@ -133,7 +133,7 @@ describe("Login", () => {
 
     render(<Login iniciarSesionCorrectamente={vi.fn()} />);
 
-    await usuario.type(screen.getByPlaceholderText("Ingrese su usuario"), "jperez");
+    await usuario.type(screen.getByPlaceholderText("Ingrese su correo electrónico"), "jperez@ejemplo.com");
     await usuario.type(screen.getByPlaceholderText("Ingrese su contraseña"), "clave123");
     await usuario.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
@@ -530,7 +530,7 @@ describe("Login", () => {
 
     expect(
       await screen.findByText(
-        "Usuario, contraseña, nombre y correo electrónico son obligatorios.",
+        "Nombre, correo electrónico y contraseña son obligatorios.",
       ),
     ).toBeInTheDocument();
     expect(registrarUsuario).not.toHaveBeenCalled();
@@ -550,7 +550,6 @@ describe("Login", () => {
       screen.getByPlaceholderText("Ingrese su correo electrónico"),
       "juan@ejemplo.com",
     );
-    await usuario.type(screen.getByPlaceholderText("Ingrese su usuario"), "jperez");
     await usuario.type(screen.getByPlaceholderText("Ingrese su contraseña"), "clave123");
     await usuario.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
@@ -560,7 +559,6 @@ describe("Login", () => {
       ),
     ).toBeInTheDocument();
     expect(registrarUsuario).toHaveBeenCalledWith(
-      "jperez",
       "clave123",
       "Juan Pérez",
       "juan@ejemplo.com",
@@ -570,7 +568,7 @@ describe("Login", () => {
     expect(screen.getByRole("button", { name: "Iniciar sesión" })).toBeInTheDocument();
   });
 
-  it("muestra error cuando el usuario o correo ya existen (409)", async () => {
+  it("muestra error cuando el correo ya existe (409)", async () => {
     registrarUsuario.mockRejectedValue({ response: { status: 409 } });
     const usuario = userEvent.setup();
 
@@ -584,12 +582,11 @@ describe("Login", () => {
       screen.getByPlaceholderText("Ingrese su correo electrónico"),
       "juan@ejemplo.com",
     );
-    await usuario.type(screen.getByPlaceholderText("Ingrese su usuario"), "jperez");
     await usuario.type(screen.getByPlaceholderText("Ingrese su contraseña"), "clave123");
     await usuario.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
     expect(
-      await screen.findByText("El usuario o correo electrónico ya existe."),
+      await screen.findByText("Ese correo electrónico ya está registrado."),
     ).toBeInTheDocument();
   });
 

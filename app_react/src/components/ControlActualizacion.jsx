@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { actualizarDatos, obtenerEstadoActualizacion } from "../services/api";
 
@@ -49,14 +49,14 @@ function ControlActualizacion({
   // Evita ejecutar varias veces el callback de finalización
   const actualizacionSolicitadaRef = useRef(false);
 
-  const detenerSeguimiento = () => {
+  const detenerSeguimiento = useCallback(() => {
     if (intervaloRef.current) {
       clearInterval(intervaloRef.current);
       intervaloRef.current = null;
     }
-  };
+  }, []);
 
-  const consultarEstado = async () => {
+  const consultarEstado = useCallback(async () => {
     try {
       const estado = await obtenerEstadoActualizacion();
 
@@ -92,9 +92,9 @@ function ControlActualizacion({
     } catch (error) {
       console.error("Error consultando estado de actualización:", error);
     }
-  };
+  }, [onUltimaActualizacion, onActualizacionCompletada, detenerSeguimiento]);
 
-  const iniciarSeguimiento = () => {
+  const iniciarSeguimiento = useCallback(() => {
     if (intervaloRef.current) {
       return;
     }
@@ -104,7 +104,7 @@ function ControlActualizacion({
     }, 1000);
 
     consultarEstado();
-  };
+  }, [consultarEstado]);
 
   const ejecutarActualizacion = async () => {
     if (actualizando || !horizonteValido) {
@@ -203,7 +203,7 @@ function ControlActualizacion({
       componenteActivo = false;
       detenerSeguimiento();
     };
-  }, []);
+  }, [iniciarSeguimiento, detenerSeguimiento, onUltimaActualizacion]);
 
   return (
     <div className="control-actualizacion">
