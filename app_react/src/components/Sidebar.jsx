@@ -40,6 +40,17 @@ function Sidebar({
 
           <div className="logo-subtitulo">Analítica de ventas</div>
         </div>
+
+        {/* Mismo botón que el del pie, pero solo visible en móvil (ver
+            Sidebar.css): al lado contrario del logo, arriba a la derecha. */}
+        <button
+          type="button"
+          className="boton-cerrar-sesion boton-cerrar-sesion-movil"
+          onClick={cerrarSesion}
+          aria-label="Cerrar sesión"
+        >
+          <span>↪</span>
+        </button>
       </div>
 
       <div className="sidebar-actualizacion">
@@ -68,7 +79,7 @@ function Sidebar({
       <div className="sidebar-footer">
         <button
           type="button"
-          className="boton-cerrar-sesion"
+          className="boton-cerrar-sesion boton-cerrar-sesion-escritorio"
           onClick={cerrarSesion}
         >
           <span>↪</span>

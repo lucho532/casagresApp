@@ -142,6 +142,12 @@
   font-size: 16px;
 }
 
+/* Botón de cerrar sesión duplicado para el header móvil (ver más abajo):
+   oculto en escritorio, donde se usa el del pie del sidebar. */
+.boton-cerrar-sesion-movil {
+  display: none;
+}
+
 /* RESPONSIVE */
 @media (max-width: 1000px) {
   .sidebar {
@@ -165,26 +171,34 @@
     min-width: max-content;
   }
 
-  /* El menú pasa a ser una barra horizontal con scroll; el pie ya no
-     tiene sentido "empujado" al fondo de la página, así que se acomoda
-     al lado. Se mantiene el botón de cerrar sesión (en un layout de
-     antes, ocultar todo el pie también lo escondía a él, dejando sin
-     forma de cerrar sesión desde el celular) y solo se oculta el texto
-     decorativo para no ocupar tanto espacio.
-  */
+  /* El menú pasa a ser una barra horizontal con scroll y el pie (con el
+     botón de cerrar sesión de escritorio) ya no tiene un lugar natural
+     ahí, así que se oculta completo... */
   .sidebar-footer {
-    margin-top: 0;
-    border-top: none;
-    padding: 8px 12px 12px;
-  }
-
-  .boton-cerrar-sesion {
-    width: auto;
-    margin-bottom: 0;
-  }
-
-  .sidebar-footer-text {
     display: none;
+  }
+
+  /* ...y en su lugar aparece este botón, en la misma fila que el logo,
+     empujado al extremo contrario gracias a "margin-left: auto" (el
+     mismo truco de flexbox que ya usa .sidebar-logo). */
+  .boton-cerrar-sesion-movil {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    margin-left: auto;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: transparent;
+    color: #ffffff;
+    font-size: 17px;
+    cursor: pointer;
+  }
+
+  .boton-cerrar-sesion-movil:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 }
 
