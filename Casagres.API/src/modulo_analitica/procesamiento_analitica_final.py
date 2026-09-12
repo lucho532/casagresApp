@@ -16,9 +16,53 @@ from datetime import datetime
 from functools import partial
 
 import numpy as np
+import openpyxl
 import pandas as pd
 
 # --- FUNCIONES DE LIMPIEZA Y ESTANDARIZACIÓN ---
+
+
+def exportar_excel_stream(df, ruta_salida, hoja="Sheet1"):
+    """
+    Exporta un DataFrame a .xlsx sin cargar todo el libro en memoria.
+
+    Usa el modo "write_only" de openpyxl (escribe cada fila a disco a
+    medida que se genera). Se probaron dos alternativas antes de esta y
+    ambas fallaron con los datos reales:
+    - df.to_excel(..., engine="openpyxl"): arma todo el libro en memoria,
+      celda por celda, antes de guardar (llegó a superar 1 GB de RAM con
+      7 años de datos).
+    - df.to_excel(..., engine="xlsxwriter", options={"constant_memory":
+      True}): sí resuelve la memoria, pero tiene un bug real con pandas
+      que pierde el contenido de las columnas de texto (todas las celdas
+      de una columna quedan vacías salvo la última fila) -- se detectó
+      comparando el archivo exportado contra los datos de origen.
+    """
+    workbook = openpyxl.Workbook(write_only=True)
+    hoja_excel = workbook.create_sheet(hoja)
+
+    hoja_excel.append(list(df.columns))
+
+    for fila in df.itertuples(index=False, name=None):
+        hoja_excel.append([_valor_compatible_con_excel(valor) for valor in fila])
+
+    workbook.save(ruta_salida)
+
+
+def _valor_compatible_con_excel(valor):
+    """
+    openpyxl (a diferencia de pd.DataFrame.to_excel) no sabe convertir
+    ciertos tipos de pandas por su cuenta -- por ejemplo, la columna
+    "periodo" queda como pd.Period tras procesamiento_remisiones_y_facturas,
+    y eso rompe la exportación en modo streaming si no se convierte antes.
+    """
+    if pd.isna(valor):
+        return None
+
+    if isinstance(valor, pd.Period):
+        return str(valor)
+
+    return valor
 
 
 def clean_columns(df):
@@ -263,17 +307,7 @@ def ejecutar_etl_ventas(ruta_informes, ruta_salida):
             "Ventas_Casagres_Limpio_PowerBI.xlsx",
         )
 
-        # openpyxl como motor de escritura arma todo el libro en memoria,
-        # celda por celda, antes de guardar (con 7 años de datos esto llegó
-        # a superar 1 GB de RAM). xlsxwriter en modo "constant_memory"
-        # escribe cada fila a disco a medida que se agrega, así que la
-        # memoria se mantiene plana sin importar cuántas filas se exporten.
-        with pd.ExcelWriter(
-            nombre_archivo_salida,
-            engine="xlsxwriter",
-            engine_kwargs={"options": {"constant_memory": True}},
-        ) as writer:
-            df_limpio.iloc[:, :48].to_excel(writer, index=False)
+        exportar_excel_stream(df_limpio.iloc[:, :48], nombre_archivo_salida)
         print(
             f"\n EXPORTACIÓN EXITOSA: Archivo guardado como '{nombre_archivo_salida}'"
         )
