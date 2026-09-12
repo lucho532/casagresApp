@@ -67,8 +67,16 @@ def load_dataframe(year, sheet_name, ruta_informes, header=None):
 
 def load_all_dataframe(sheet_name, ruta_informes):
     """
-    Carga todos los años, segrega las columnas principales de las columnas junk.
-    Retorna dos DataFrames consolidados: (limpio, junk).
+    Carga todos los años y segrega las columnas principales de las columnas junk.
+
+    Procesa un archivo a la vez y descarta el DataFrame crudo (todas sus
+    columnas) apenas se extraen las columnas útiles: mantener todos los
+    archivos crudos en memoria a la vez (como se hacía antes) puede
+    multiplicar por 3 o más el uso de RAM en máquinas con poca memoria.
+
+    Retorna un único DataFrame consolidado con las columnas limpias; las
+    columnas "junk" (sobrantes) nunca se usan en el resto del pipeline, así
+    que ni siquiera se calculan.
     """
     if sheet_name in ["REMISIONES", "Datos"]:
         header = 0
@@ -79,24 +87,6 @@ def load_all_dataframe(sheet_name, ruta_informes):
         header = 0
 
     years = ["2020", "2021", "2022", "2023", "2024", "2025", "2026"]
-
-    raw_dataframes = []
-
-    for year in years:
-        dataframes_year = load_dataframe(
-            year=year,
-            sheet_name=sheet_name,
-            ruta_informes=ruta_informes,
-            header=header,
-        )
-
-        # Si no hay archivos para ese año, continuar
-        if not dataframes_year:
-            print(f"No se encontraron archivos para el año {year}. Se omite.")
-            continue
-
-        # Agregar todos los DataFrames encontrados
-        raw_dataframes.extend(dataframes_year)
 
     columnas_limpias = [
         "referencia_producto",
@@ -149,42 +139,56 @@ def load_all_dataframe(sheet_name, ruta_informes):
     ]
 
     clean_dfs = []
-    junk_dfs = []
     NUM_COLS_ESPERADAS_HASTA_AT = 47
 
-    for df in raw_dataframes:
-        if df is None or df.empty:
+    for year in years:
+        dataframes_year = load_dataframe(
+            year=year,
+            sheet_name=sheet_name,
+            ruta_informes=ruta_informes,
+            header=header,
+        )
+
+        # Si no hay archivos para ese año, continuar
+        if not dataframes_year:
+            print(f"No se encontraron archivos para el año {year}. Se omite.")
             continue
 
-        if len(df.columns) >= NUM_COLS_ESPERADAS_HASTA_AT:
-            if "Nombre Zona Vendedor" in df.columns:
-                df.rename(columns={df.columns[46]: "Zona"}, inplace=True)
-                df["Zona"] = df["Nombre Zona Vendedor"]
-            elif "Nombre Zona" in df.columns:
-                df.rename(columns={df.columns[46]: "Zona"}, inplace=True)
-                df["Zona"] = df["Nombre Zona"]
-            elif "Nombre Zona Original" in df.columns:
-                df.rename(columns={df.columns[46]: "Zona"}, inplace=True)
-                df["Zona"] = df["Nombre Zona Original"]
+        for df in dataframes_year:
+            if df is None or df.empty:
+                continue
 
-        df_clean = df.iloc[:, :NUM_COLS_ESPERADAS_HASTA_AT].copy()
+            if len(df.columns) >= NUM_COLS_ESPERADAS_HASTA_AT:
+                if "Nombre Zona Vendedor" in df.columns:
+                    df.rename(columns={df.columns[46]: "Zona"}, inplace=True)
+                    df["Zona"] = df["Nombre Zona Vendedor"]
+                elif "Nombre Zona" in df.columns:
+                    df.rename(columns={df.columns[46]: "Zona"}, inplace=True)
+                    df["Zona"] = df["Nombre Zona"]
+                elif "Nombre Zona Original" in df.columns:
+                    df.rename(columns={df.columns[46]: "Zona"}, inplace=True)
+                    df["Zona"] = df["Nombre Zona Original"]
 
-        # Ajustar nombres si la cantidad de columnas coincide con la lista esperada
-        if len(df_clean.columns) == len(columnas_limpias):
-            df_clean.columns = columnas_limpias
+            df_clean = df.iloc[:, :NUM_COLS_ESPERADAS_HASTA_AT].copy()
 
-        clean_dfs.append(df_clean)
+            # Ajustar nombres si la cantidad de columnas coincide con la lista esperada
+            if len(df_clean.columns) == len(columnas_limpias):
+                df_clean.columns = columnas_limpias
 
-        df_junk = df.iloc[:, NUM_COLS_ESPERADAS_HASTA_AT:].copy()
-        junk_dfs.append(df_junk)
+            clean_dfs.append(df_clean)
+
+        # "dataframes_year" (con todas las columnas de cada archivo, no solo
+        # las 47 útiles) ya no hace falta: se libera antes de pasar al
+        # siguiente año en vez de acumularse hasta el final.
+        del dataframes_year
 
     df_consolidado = pd.concat(clean_dfs, ignore_index=True)
-    df_junk_consolidado = pd.concat(junk_dfs, ignore_index=True)
+    del clean_dfs
 
     if sheet_name in ["REMISIONES", "Datos"]:
         clean_columns(df_consolidado)
 
-    return df_consolidado, df_junk_consolidado
+    return df_consolidado
 
 
 ##### Funciones para el procesamiento directo de DataFrames ######
@@ -228,7 +232,7 @@ def ejecutar_etl_ventas(ruta_informes, ruta_salida):
 
     try:
         # 1. Cargar y concatenar
-        df_consolidado, df_junk_consolidado = load_all_dataframe(
+        df_consolidado = load_all_dataframe(
             sheet_name=SHEET_NAME_VENTAS, ruta_informes=ruta_informes
         )
         print("\n Carga finalizada. Datos concatenados.")
@@ -259,9 +263,17 @@ def ejecutar_etl_ventas(ruta_informes, ruta_salida):
             "Ventas_Casagres_Limpio_PowerBI.xlsx",
         )
 
-        df_limpio.iloc[:, :48].to_excel(
-            nombre_archivo_salida, index=False, engine="openpyxl"
-        )
+        # openpyxl como motor de escritura arma todo el libro en memoria,
+        # celda por celda, antes de guardar (con 7 años de datos esto llegó
+        # a superar 1 GB de RAM). xlsxwriter en modo "constant_memory"
+        # escribe cada fila a disco a medida que se agrega, así que la
+        # memoria se mantiene plana sin importar cuántas filas se exporten.
+        with pd.ExcelWriter(
+            nombre_archivo_salida,
+            engine="xlsxwriter",
+            engine_kwargs={"options": {"constant_memory": True}},
+        ) as writer:
+            df_limpio.iloc[:, :48].to_excel(writer, index=False)
         print(
             f"\n EXPORTACIÓN EXITOSA: Archivo guardado como '{nombre_archivo_salida}'"
         )
