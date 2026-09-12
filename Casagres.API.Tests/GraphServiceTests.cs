@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Casagres.API.Tests.TestHelpers;
 using Microsoft.Extensions.Configuration;
 using Moq;
@@ -201,5 +202,125 @@ public class GraphServiceTests
         var excepcion = await Assert.ThrowsAsync<IOException>(servicio.ProbarGraphAsync);
 
         Assert.Contains("abierto en otro programa", excepcion.Message);
+    }
+
+    // ============================================================
+    // ProbarGraphAsync — descarga incremental (solo lo que cambió)
+    // ============================================================
+
+    [Fact]
+    public async Task ProbarGraphAsync_ArchivoSinCambios_NoLoVuelveADescargar()
+    {
+        using var carpetaDatos = new CarpetaDatosTemporal();
+
+        var carpetaInformes = Path.Combine(carpetaDatos.Ruta, "informes");
+        Directory.CreateDirectory(carpetaInformes);
+        await File.WriteAllTextAsync(Path.Combine(carpetaInformes, "informe.xlsx"), "contenido ya descargado");
+
+        // El manifiesto de la ejecución anterior ya tiene registrada la
+        // misma fecha de modificación que ahora reporta OneDrive.
+        var rutaManifiesto = Path.Combine(carpetaDatos.Ruta, "estado_descargas_onedrive.json");
+        await File.WriteAllTextAsync(
+            rutaManifiesto,
+            """{ "informe.xlsx": "2025-06-01T12:00:00Z" }""");
+
+        _handler.EncolarRespuesta(HttpStatusCode.OK, RespuestaCarpetaRaiz);
+        _handler.EncolarRespuesta(HttpStatusCode.OK, """
+            {
+                "value": [
+                    {
+                        "id": "1",
+                        "name": "informe.xlsx",
+                        "file": {},
+                        "lastModifiedDateTime": "2025-06-01T12:00:00Z"
+                    }
+                ]
+            }
+            """);
+        // A propósito NO se encola ninguna respuesta para la descarga del
+        // contenido: si el código intentara descargarlo de todas formas,
+        // el fake handler lanzaría una excepción por falta de respuestas.
+
+        var servicio = CrearServicio(carpetaDatos: carpetaDatos.Ruta);
+
+        await servicio.ProbarGraphAsync();
+
+        Assert.DoesNotContain(_handler.UrlsSolicitadas, url => url.Contains("/content"));
+        Assert.Equal(
+            "contenido ya descargado",
+            await File.ReadAllTextAsync(Path.Combine(carpetaInformes, "informe.xlsx")));
+    }
+
+    [Fact]
+    public async Task ProbarGraphAsync_ArchivoModificado_LoVuelveADescargar()
+    {
+        using var carpetaDatos = new CarpetaDatosTemporal();
+
+        var carpetaInformes = Path.Combine(carpetaDatos.Ruta, "informes");
+        Directory.CreateDirectory(carpetaInformes);
+        await File.WriteAllTextAsync(Path.Combine(carpetaInformes, "informe.xlsx"), "version vieja");
+
+        var rutaManifiesto = Path.Combine(carpetaDatos.Ruta, "estado_descargas_onedrive.json");
+        await File.WriteAllTextAsync(
+            rutaManifiesto,
+            """{ "informe.xlsx": "2025-06-01T12:00:00Z" }""");
+
+        _handler.EncolarRespuesta(HttpStatusCode.OK, RespuestaCarpetaRaiz);
+        _handler.EncolarRespuesta(HttpStatusCode.OK, """
+            {
+                "value": [
+                    {
+                        "id": "1",
+                        "name": "informe.xlsx",
+                        "file": {},
+                        "lastModifiedDateTime": "2025-07-15T09:00:00Z"
+                    }
+                ]
+            }
+            """);
+        _handler.EncolarRespuesta(HttpStatusCode.OK, "version nueva");
+
+        var servicio = CrearServicio(carpetaDatos: carpetaDatos.Ruta);
+
+        await servicio.ProbarGraphAsync();
+
+        Assert.Contains(_handler.UrlsSolicitadas, url => url.Contains("/content"));
+        Assert.Equal(
+            "version nueva",
+            await File.ReadAllTextAsync(Path.Combine(carpetaInformes, "informe.xlsx")));
+    }
+
+    [Fact]
+    public async Task ProbarGraphAsync_GuardaElManifiestoConLaFechaDeModificacionDeCadaArchivo()
+    {
+        using var carpetaDatos = new CarpetaDatosTemporal();
+        Directory.CreateDirectory(Path.Combine(carpetaDatos.Ruta, "informes"));
+
+        _handler.EncolarRespuesta(HttpStatusCode.OK, RespuestaCarpetaRaiz);
+        _handler.EncolarRespuesta(HttpStatusCode.OK, """
+            {
+                "value": [
+                    {
+                        "id": "1",
+                        "name": "informe.xlsx",
+                        "file": {},
+                        "lastModifiedDateTime": "2025-06-01T12:00:00Z"
+                    }
+                ]
+            }
+            """);
+        _handler.EncolarRespuesta(HttpStatusCode.OK, "contenido");
+
+        var servicio = CrearServicio(carpetaDatos: carpetaDatos.Ruta);
+
+        await servicio.ProbarGraphAsync();
+
+        var rutaManifiesto = Path.Combine(carpetaDatos.Ruta, "estado_descargas_onedrive.json");
+        var manifiesto = JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(
+            await File.ReadAllTextAsync(rutaManifiesto));
+
+        Assert.Equal(
+            new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero),
+            manifiesto!["informe.xlsx"]);
     }
 }

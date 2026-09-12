@@ -113,30 +113,48 @@ public class GraphService : IGraphService
         Console.WriteLine($"Drive ID: {carpeta.DriveId}");
         Console.WriteLine($"Carpeta ID: {carpeta.CarpetaId}");
 
-        var carpetaDestino = Path.Combine(_configuration["Rutas:CarpetaDatos"]!, "informes");
+        var carpetaDatos = _configuration["Rutas:CarpetaDatos"]!;
+        var carpetaDestino = Path.Combine(carpetaDatos, "informes");
         Directory.CreateDirectory(carpetaDestino);
 
         Console.WriteLine();
         Console.WriteLine($"Destino local: {carpetaDestino}");
 
-        var resumen = await DescargarCarpetaAsync(client, carpeta.DriveId, carpeta.CarpetaId, carpetaDestino);
+        // Solo se descargan los archivos que sean nuevos o hayan cambiado
+        // desde la última ejecución (según "lastModifiedDateTime" de
+        // OneDrive); el resto se deja tal cual está en disco. Esto evita
+        // volver a bajar años completos que ya están cerrados y no
+        // cambian, cada vez que se pide una actualización.
+        var rutaManifiesto = Path.Combine(carpetaDatos, "estado_descargas_onedrive.json");
+        var manifiestoAnterior = LeerManifiesto(rutaManifiesto);
+        var manifiestoNuevo = new Dictionary<string, DateTimeOffset>();
+
+        var resumen = await DescargarCarpetaAsync(
+            client, carpeta.DriveId, carpeta.CarpetaId, carpetaDestino,
+            manifiestoAnterior, manifiestoNuevo);
+
+        GuardarManifiesto(rutaManifiesto, manifiestoNuevo);
 
         Console.WriteLine();
         Console.WriteLine("==========================================");
         Console.WriteLine("DESCARGA FINALIZADA");
         Console.WriteLine("==========================================");
-        Console.WriteLine($"Archivos descargados: {resumen.TotalArchivos}");
-        Console.WriteLine($"Carpetas encontradas:  {resumen.TotalCarpetas}");
-        Console.WriteLine($"Carpeta destino:       {carpetaDestino}");
+        Console.WriteLine($"Archivos descargados:      {resumen.Descargados}");
+        Console.WriteLine($"Sin cambios (se omitieron): {resumen.Omitidos}");
+        Console.WriteLine($"Carpetas encontradas:      {resumen.TotalCarpetas}");
+        Console.WriteLine($"Carpeta destino:           {carpetaDestino}");
         Console.WriteLine("==========================================");
     }
 
     private async Task<ResumenDescarga> DescargarCarpetaAsync(
-        HttpClient client, string driveId, string carpetaId, string carpetaDestino)
+        HttpClient client, string driveId, string carpetaId, string carpetaDestino,
+        IReadOnlyDictionary<string, DateTimeOffset> manifiestoAnterior,
+        Dictionary<string, DateTimeOffset> manifiestoNuevo)
     {
         var url = $"{GraphBaseUrl}/drives/{driveId}/items/{carpetaId}/children";
 
-        int totalArchivos = 0;
+        int descargados = 0;
+        int omitidos = 0;
         int totalCarpetas = 0;
         int pagina = 0;
 
@@ -158,27 +176,34 @@ public class GraphService : IGraphService
 
             foreach (var elemento in elementos.EnumerateArray())
             {
-                var tipo = await ProcesarElementoDescargaAsync(
-                    client, elemento, driveId, carpetaDestino, totalArchivos + 1);
+                var resultado = await ProcesarElementoDescargaAsync(
+                    client, elemento, driveId, carpetaDestino, descargados + omitidos + 1,
+                    manifiestoAnterior, manifiestoNuevo);
 
-                if (tipo == TipoElementoDrive.Archivo)
+                switch (resultado)
                 {
-                    totalArchivos++;
-                }
-                else if (tipo == TipoElementoDrive.Carpeta)
-                {
-                    totalCarpetas++;
+                    case ResultadoElemento.Descargado:
+                        descargados++;
+                        break;
+                    case ResultadoElemento.Omitido:
+                        omitidos++;
+                        break;
+                    case ResultadoElemento.Carpeta:
+                        totalCarpetas++;
+                        break;
                 }
             }
 
             url = ObtenerSiguientePagina(root);
         }
 
-        return new ResumenDescarga(totalArchivos, totalCarpetas);
+        return new ResumenDescarga(descargados, omitidos, totalCarpetas);
     }
 
-    private static async Task<TipoElementoDrive> ProcesarElementoDescargaAsync(
-        HttpClient client, JsonElement elemento, string driveId, string carpetaDestino, int numeroArchivo)
+    private static async Task<ResultadoElemento> ProcesarElementoDescargaAsync(
+        HttpClient client, JsonElement elemento, string driveId, string carpetaDestino, int numeroArchivo,
+        IReadOnlyDictionary<string, DateTimeOffset> manifiestoAnterior,
+        Dictionary<string, DateTimeOffset> manifiestoNuevo)
     {
         var nombre = ObtenerString(elemento, "name");
 
@@ -186,31 +211,53 @@ public class GraphService : IGraphService
         {
             Console.WriteLine();
             Console.WriteLine($"[CARPETA] {nombre}");
-            return TipoElementoDrive.Carpeta;
+            return ResultadoElemento.Carpeta;
         }
 
         if (!elemento.TryGetProperty("file", out _))
         {
             Console.WriteLine();
             Console.WriteLine($"[OTRO] {nombre}");
-            return TipoElementoDrive.Otro;
+            return ResultadoElemento.Otro;
         }
 
-        await DescargarArchivoDeElementoAsync(client, elemento, nombre, driveId, carpetaDestino, numeroArchivo);
-
-        return TipoElementoDrive.Archivo;
+        return await DescargarArchivoDeElementoAsync(
+            client, elemento, nombre, driveId, carpetaDestino, numeroArchivo,
+            manifiestoAnterior, manifiestoNuevo);
     }
 
-    private static async Task DescargarArchivoDeElementoAsync(
+    private static async Task<ResultadoElemento> DescargarArchivoDeElementoAsync(
         HttpClient client, JsonElement elemento, string? nombre, string driveId,
-        string carpetaDestino, int numeroArchivo)
+        string carpetaDestino, int numeroArchivo,
+        IReadOnlyDictionary<string, DateTimeOffset> manifiestoAnterior,
+        Dictionary<string, DateTimeOffset> manifiestoNuevo)
     {
         var archivoId = elemento.GetProperty("id").GetString();
 
         if (string.IsNullOrWhiteSpace(nombre) || string.IsNullOrWhiteSpace(archivoId))
         {
             Console.WriteLine("Archivo ignorado: falta nombre o ID.");
-            return;
+            return ResultadoElemento.Otro;
+        }
+
+        var rutaDestino = Path.Combine(carpetaDestino, nombre);
+        var fechaModificacion = ObtenerFechaModificacion(elemento);
+
+        if (fechaModificacion is { } fecha)
+        {
+            manifiestoNuevo[nombre] = fecha;
+
+            var sinCambios =
+                File.Exists(rutaDestino) &&
+                manifiestoAnterior.TryGetValue(nombre, out var fechaConocida) &&
+                fechaConocida == fecha;
+
+            if (sinCambios)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"[SIN CAMBIOS] {nombre} (se omite, ya está actualizado)");
+                return ResultadoElemento.Omitido;
+            }
         }
 
         Console.WriteLine();
@@ -221,6 +268,49 @@ public class GraphService : IGraphService
         Console.WriteLine("------------------------------------------");
 
         await DescargarArchivoAsync(client, driveId, archivoId, nombre, carpetaDestino);
+
+        return ResultadoElemento.Descargado;
+    }
+
+    private static DateTimeOffset? ObtenerFechaModificacion(JsonElement elemento)
+    {
+        if (!elemento.TryGetProperty("lastModifiedDateTime", out var valor))
+        {
+            return null;
+        }
+
+        var texto = valor.GetString();
+
+        return !string.IsNullOrWhiteSpace(texto) && DateTimeOffset.TryParse(texto, out var fecha)
+            ? fecha
+            : null;
+    }
+
+    private static Dictionary<string, DateTimeOffset> LeerManifiesto(string ruta)
+    {
+        if (!File.Exists(ruta))
+        {
+            return new Dictionary<string, DateTimeOffset>();
+        }
+
+        try
+        {
+            var json = File.ReadAllText(ruta);
+
+            return JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(json)
+                ?? new Dictionary<string, DateTimeOffset>();
+        }
+        catch (JsonException)
+        {
+            // Manifiesto corrupto o de un formato antiguo: no es un error
+            // fatal, simplemente se vuelve a descargar todo esta vez.
+            return new Dictionary<string, DateTimeOffset>();
+        }
+    }
+
+    private static void GuardarManifiesto(string ruta, Dictionary<string, DateTimeOffset> manifiesto)
+    {
+        File.WriteAllText(ruta, JsonSerializer.Serialize(manifiesto));
     }
 
     private static async Task DescargarArchivoAsync(
@@ -419,7 +509,7 @@ public class GraphService : IGraphService
 
     private readonly record struct CarpetaRaiz(string Nombre, string DriveId, string CarpetaId);
 
-    private readonly record struct ResumenDescarga(int TotalArchivos, int TotalCarpetas);
+    private readonly record struct ResumenDescarga(int Descargados, int Omitidos, int TotalCarpetas);
 
-    private enum TipoElementoDrive { Archivo, Carpeta, Otro }
+    private enum ResultadoElemento { Descargado, Omitido, Carpeta, Otro }
 }
