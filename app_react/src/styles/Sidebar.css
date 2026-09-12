@@ -165,7 +165,25 @@
     min-width: max-content;
   }
 
+  /* El menú pasa a ser una barra horizontal con scroll; el pie ya no
+     tiene sentido "empujado" al fondo de la página, así que se acomoda
+     al lado. Se mantiene el botón de cerrar sesión (en un layout de
+     antes, ocultar todo el pie también lo escondía a él, dejando sin
+     forma de cerrar sesión desde el celular) y solo se oculta el texto
+     decorativo para no ocupar tanto espacio.
+  */
   .sidebar-footer {
+    margin-top: 0;
+    border-top: none;
+    padding: 8px 12px 12px;
+  }
+
+  .boton-cerrar-sesion {
+    width: auto;
+    margin-bottom: 0;
+  }
+
+  .sidebar-footer-text {
     display: none;
   }
 }
