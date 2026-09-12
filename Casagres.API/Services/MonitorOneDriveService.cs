@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace Casagres.API.Services;
 
@@ -25,6 +26,26 @@ public class MonitorOneDriveService : BackgroundService
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
+        // En hosting con disco efímero (por ejemplo Render sin disco
+        // persistente) el archivo de huella (estado_actualizacion.json)
+        // nunca sobrevive a un reinicio del contenedor, así que este
+        // servicio SIEMPRE creería que "hay cambios" y dispararía una
+        // actualización automática apenas arranca la API — pudiendo
+        // chocar con una actualización manual que el usuario dispare al
+        // mismo tiempo. Por eso es desactivable.
+        var habilitado = _configuration.GetValue("MonitorOneDrive:Habilitado", true);
+
+        if (!habilitado)
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Servicio de actualización automática de OneDrive deshabilitado " +
+                "(MonitorOneDrive:Habilitado=false). Solo se actualizará manualmente."
+            );
+
+            return;
+        }
+
         Console.WriteLine();
         Console.WriteLine("========================================");
         Console.WriteLine("   SERVICIO DE ACTUALIZACIÓN AUTOMÁTICA");

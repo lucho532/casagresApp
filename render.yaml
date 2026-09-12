@@ -14,6 +14,14 @@ services:
       - key: ASPNETCORE_URLS
         value: http://+:10000
 
+      # Sin disco persistente, el chequeo automático de cambios en OneDrive
+      # (MonitorOneDriveService) nunca encuentra un "estado anterior" y por
+      # lo tanto dispara una actualización completa en cada arranque del
+      # contenedor, pudiendo chocar con una actualización manual. Se
+      # desactiva: en este plan, actualizar datos es siempre manual.
+      - key: MonitorOneDrive__Habilitado
+        value: "false"
+
       # Secretos y configuración específica del entorno: se piden en el
       # dashboard al crear el Blueprint (sync: false = no van en este
       # archivo ni se versionan).
