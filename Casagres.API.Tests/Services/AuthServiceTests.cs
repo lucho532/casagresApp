@@ -7,6 +7,7 @@ using Casagres.API.Services;
 using Casagres.API.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace Casagres.API.Tests.Services;
@@ -44,16 +45,35 @@ public class AuthServiceTests
     private static IEmailVerificationService CrearEmailVerificationServiceSimulado() =>
         new Mock<IEmailVerificationService>().Object;
 
+    // El envío de verificación al registrarse corre en un scope nuevo (ver
+    // AuthService.EnviarVerificacionSinFallarElRegistroAsync), así que el
+    // scope factory de prueba tiene que resolver este mismo
+    // IEmailVerificationService para que las verificaciones de Moq sigan
+    // funcionando.
+    private static IServiceScopeFactory CrearFabricaDeScopes(
+        IEmailVerificationService emailVerificationService)
+    {
+        var servicios = new ServiceCollection();
+        servicios.AddSingleton(emailVerificationService);
+
+        return servicios.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+    }
+
     private static AuthService CrearServicio(
         CasagresDbContext db,
         string? claveJwt = ClaveJwtDePrueba,
         IEmailVerificationService? emailVerificationService = null,
-        HttpMessageHandler? httpHandler = null) =>
-        new(
+        HttpMessageHandler? httpHandler = null)
+    {
+        var servicioEmail = emailVerificationService ?? CrearEmailVerificationServiceSimulado();
+
+        return new(
             db,
             CrearConfiguracion(claveJwt),
             CrearFabricaHttpClient(httpHandler),
-            emailVerificationService ?? CrearEmailVerificationServiceSimulado());
+            servicioEmail,
+            CrearFabricaDeScopes(servicioEmail));
+    }
 
     // ============================================================
     // LoginAsync

@@ -5,6 +5,7 @@ using System.Text.Json;
 using Casagres.API.Data;
 using Casagres.API.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using BCrypt.Net;
 using Microsoft.IdentityModel.Protocols;
@@ -19,6 +20,7 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailVerificationService _emailVerificationService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     private const string MicrosoftClientId =
         "c21b50d1-67bf-4da2-a167-25e5d3625973";
@@ -36,12 +38,14 @@ public class AuthService : IAuthService
         CasagresDbContext db,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
-        IEmailVerificationService emailVerificationService)
+        IEmailVerificationService emailVerificationService,
+        IServiceScopeFactory scopeFactory)
     {
         _db = db;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
         _emailVerificationService = emailVerificationService;
+        _scopeFactory = scopeFactory;
 
         _microsoftConfigurationManager = CrearAdministradorConfiguracionOidc(
             $"{MicrosoftAuthority}/.well-known/openid-configuration");
@@ -136,7 +140,18 @@ public class AuthService : IAuthService
     {
         try
         {
-            await _emailVerificationService.EnviarCorreoDeVerificacionAsync(usuario);
+            // Este método sigue corriendo después de que la respuesta HTTP
+            // ya se envió, cuando el scope de inyección de dependencias de
+            // la solicitud (y con él, _db) ya fue liberado. Por eso hay que
+            // resolver una instancia nueva de IEmailVerificationService en
+            // un scope propio, en vez de usar _emailVerificationService
+            // (crashea con "Cannot access a disposed context instance").
+            using var scope = _scopeFactory.CreateScope();
+
+            var emailVerificationService = scope.ServiceProvider
+                .GetRequiredService<IEmailVerificationService>();
+
+            await emailVerificationService.EnviarCorreoDeVerificacionAsync(usuario);
         }
         catch (Exception ex)
         {

@@ -5,6 +5,7 @@ using Casagres.API.Models.Dtos.Auth;
 using Casagres.API.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace Casagres.API.Tests.Controllers;
@@ -15,8 +16,26 @@ public class AuthControllerTests
     private readonly Mock<IPasswordResetService> _passwordResetService = new();
     private readonly Mock<IEmailVerificationService> _emailVerificationService = new();
 
+    // El controlador resuelve IPasswordResetService/IEmailVerificationService
+    // desde un scope nuevo para las tareas en segundo plano (ver
+    // SolicitarResetSinFallarLaRespuestaAsync), así que el scope factory de
+    // prueba tiene que devolver estos mismos mocks para que las
+    // verificaciones de Moq sigan funcionando.
+    private IServiceScopeFactory CrearFabricaDeScopes()
+    {
+        var servicios = new ServiceCollection();
+        servicios.AddSingleton(_passwordResetService.Object);
+        servicios.AddSingleton(_emailVerificationService.Object);
+
+        return servicios.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+    }
+
     private AuthController CrearController() =>
-        new(_authService.Object, _passwordResetService.Object, _emailVerificationService.Object);
+        new(
+            _authService.Object,
+            _passwordResetService.Object,
+            _emailVerificationService.Object,
+            CrearFabricaDeScopes());
 
     private AuthController CrearControllerAutenticado(long usuarioId)
     {

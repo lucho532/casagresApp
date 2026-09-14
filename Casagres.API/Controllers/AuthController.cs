@@ -2,6 +2,7 @@ using Casagres.API.Models.Dtos.Auth;
 using Casagres.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 
 
 namespace Casagres.API.Controllers;
@@ -13,15 +14,18 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IPasswordResetService _passwordResetService;
     private readonly IEmailVerificationService _emailVerificationService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public AuthController(
         IAuthService authService,
         IPasswordResetService passwordResetService,
-        IEmailVerificationService emailVerificationService)
+        IEmailVerificationService emailVerificationService,
+        IServiceScopeFactory scopeFactory)
     {
         _authService = authService;
         _passwordResetService = passwordResetService;
         _emailVerificationService = emailVerificationService;
+        _scopeFactory = scopeFactory;
     }
 
 
@@ -375,7 +379,17 @@ public class AuthController : ControllerBase
     {
         try
         {
-            await _passwordResetService.SolicitarResetAsync(email);
+            // Sigue corriendo después de que la respuesta HTTP ya se envió,
+            // cuando el scope de la solicitud (y con él, el DbContext que
+            // usa _passwordResetService) ya fue liberado. Se resuelve una
+            // instancia nueva en un scope propio para evitar el error
+            // "Cannot access a disposed context instance".
+            using var scope = _scopeFactory.CreateScope();
+
+            var passwordResetService = scope.ServiceProvider
+                .GetRequiredService<IPasswordResetService>();
+
+            await passwordResetService.SolicitarResetAsync(email);
         }
         catch (Exception ex)
         {
@@ -387,7 +401,15 @@ public class AuthController : ControllerBase
     {
         try
         {
-            await _emailVerificationService.ReenviarSiNoVerificadoAsync(email);
+            // Mismo motivo que en SolicitarResetSinFallarLaRespuestaAsync:
+            // se necesita una instancia con un DbContext propio, vivo
+            // durante toda la tarea en segundo plano.
+            using var scope = _scopeFactory.CreateScope();
+
+            var emailVerificationService = scope.ServiceProvider
+                .GetRequiredService<IEmailVerificationService>();
+
+            await emailVerificationService.ReenviarSiNoVerificadoAsync(email);
         }
         catch (Exception ex)
         {
