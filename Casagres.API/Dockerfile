@@ -62,8 +62,11 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
     Rutas__CarpetaDatos=/app/proyecto_icmd
 
 # Datos de negocio (informes de ventas, salidas de la predicción): deben
-# persistir entre despliegues, así que van en un volumen, no en la imagen.
-VOLUME ["/app/proyecto_icmd"]
+# persistir entre despliegues. NO se declara con la instrucción "VOLUME"
+# de Docker (Railway rechaza el build si la usa: "use Railway Volumes"
+# en su lugar) — cada plataforma monta su propio volumen persistente en
+# la ruta que indique Rutas__CarpetaDatos (por ejemplo, en Railway un
+# volumen montado en /data, con Rutas__CarpetaDatos=/data/proyecto_icmd).
 
 # Configuración obligatoria en tiempo de ejecución (sin valores por defecto
 # porque son secretos o dependen del entorno):
