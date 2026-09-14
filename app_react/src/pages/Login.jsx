@@ -531,6 +531,11 @@ function Login({ iniciarSesionCorrectamente }) {
               ¿Ya recordaste tu contraseña? Inicia sesión
             </button>
           </form>
+        ) : modoRegistro && cargando ? (
+          <div className="estado-cargando">
+            <div className="spinner" />
+            <p>Creando usuario...</p>
+          </div>
         ) : modoRegistro ? (
           <form onSubmit={manejarRegistro}>
             <div className="login-campo">

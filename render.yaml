@@ -1,51 +1,13 @@
 services:
   # ------------------------------------------------------------
-  # Backend (.NET 9 + Python, vía Docker)
-  # ------------------------------------------------------------
-  - type: web
-    name: casagres-api
-    runtime: docker
-    plan: free
-    dockerfilePath: ./Casagres.API/Dockerfile
-    dockerContext: .
-    envVars:
-      # Render espera por defecto que el servicio escuche en el puerto
-      # 10000; esto evita depender de la detección automática del puerto.
-      - key: ASPNETCORE_URLS
-        value: http://+:10000
-
-      # Sin disco persistente, el chequeo automático de cambios en OneDrive
-      # (MonitorOneDriveService) nunca encuentra un "estado anterior" y por
-      # lo tanto dispara una actualización completa en cada arranque del
-      # contenedor, pudiendo chocar con una actualización manual. Se
-      # desactiva: en este plan, actualizar datos es siempre manual.
-      - key: MonitorOneDrive__Habilitado
-        value: "false"
-
-      # Secretos y configuración específica del entorno: se piden en el
-      # dashboard al crear el Blueprint (sync: false = no van en este
-      # archivo ni se versionan).
-      - key: ConnectionStrings__CadenaPostgres
-        sync: false
-      - key: Jwt__Key
-        sync: false
-      - key: OneDrive__CarpetaCompartidaUrl
-        sync: false
-      - key: Smtp__Host
-        sync: false
-      - key: Smtp__Puerto
-        sync: false
-      - key: Smtp__Usuario
-        sync: false
-      - key: Smtp__Password
-        sync: false
-      - key: Smtp__RemitenteNombre
-        sync: false
-      - key: Frontend__Url
-        sync: false
-
-  # ------------------------------------------------------------
   # Frontend (build estático de React con Vite)
+  #
+  # El backend YA NO vive en Render (se movió a Railway, que da disco
+  # persistente y no bloquea los puertos SMTP salientes) — se dejó a
+  # propósito de que este Blueprint ya no lo declare, para no arriesgarse
+  # a recrear por accidente el servicio viejo si algún día se vuelve a
+  # sincronizar. El frontend, en cambio, sigue aquí: los sitios estáticos
+  # de Render son gratis y no tienen los mismos problemas.
   # ------------------------------------------------------------
   - type: web
     name: casagres-frontend

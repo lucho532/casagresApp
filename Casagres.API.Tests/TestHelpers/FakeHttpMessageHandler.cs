@@ -13,16 +13,26 @@ public class FakeHttpMessageHandler : HttpMessageHandler
 
     public List<string> UrlsSolicitadas { get; } = new();
 
+    public List<string> CuerposSolicitados { get; } = new();
+
+    public List<HttpRequestMessage> SolicitudesRecibidas { get; } = new();
+
     public FakeHttpMessageHandler EncolarRespuesta(HttpStatusCode statusCode, string contenidoJson)
     {
         _respuestas.Enqueue((statusCode, contenidoJson));
         return this;
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         UrlsSolicitadas.Add(request.RequestUri!.ToString());
+        SolicitudesRecibidas.Add(request);
+
+        CuerposSolicitados.Add(
+            request.Content == null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(cancellationToken));
 
         if (_respuestas.Count == 0)
         {
@@ -37,6 +47,6 @@ public class FakeHttpMessageHandler : HttpMessageHandler
             Content = new StringContent(contenido)
         };
 
-        return Task.FromResult(respuesta);
+        return respuesta;
     }
 }

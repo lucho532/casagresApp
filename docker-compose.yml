@@ -9,11 +9,9 @@ services:
       ConnectionStrings__CadenaPostgres: ${CADENA_POSTGRES}
       Jwt__Key: ${JWT_KEY}
       OneDrive__CarpetaCompartidaUrl: ${ONEDRIVE_URL}
-      Smtp__Host: ${SMTP_HOST}
-      Smtp__Puerto: ${SMTP_PUERTO}
-      Smtp__Usuario: ${SMTP_USUARIO}
-      Smtp__Password: ${SMTP_PASSWORD}
-      Smtp__RemitenteNombre: ${SMTP_REMITENTE}
+      Brevo__ApiKey: ${BREVO_API_KEY}
+      Brevo__RemitenteEmail: ${BREVO_REMITENTE_EMAIL}
+      Brevo__RemitenteNombre: ${BREVO_REMITENTE_NOMBRE}
       Frontend__Url: ${FRONTEND_URL}
     volumes:
       # Informes de ventas y salidas del pipeline: deben sobrevivir a que se

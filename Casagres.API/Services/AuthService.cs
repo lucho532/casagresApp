@@ -122,7 +122,12 @@ public class AuthService : IAuthService
 
         await _db.SaveChangesAsync();
 
-        await EnviarVerificacionSinFallarElRegistroAsync(nuevoUsuario);
+        // El envío del correo (SMTP) puede tardar bastante -incluso hasta
+        // el límite completo de espera si el proveedor está siendo lento
+        // con una IP nueva, como ya pasó antes- y el usuario no necesita
+        // esperar eso para saber que su cuenta se creó: se dispara en
+        // segundo plano en vez de bloquear la respuesta del registro.
+        _ = EnviarVerificacionSinFallarElRegistroAsync(nuevoUsuario);
 
         return true;
     }

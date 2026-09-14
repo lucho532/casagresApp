@@ -260,7 +260,9 @@ public class AuthController : ControllerBase
             });
         }
 
-        await _passwordResetService.SolicitarResetAsync(request.Email);
+        // El envío del correo no debe bloquear la respuesta (ver el mismo
+        // fix en AuthService.RegistrarAsync).
+        _ = SolicitarResetSinFallarLaRespuestaAsync(request.Email);
 
         // Respuesta genérica siempre: no revela si el correo existe.
         return Ok(new
@@ -356,7 +358,9 @@ public class AuthController : ControllerBase
             });
         }
 
-        await _emailVerificationService.ReenviarSiNoVerificadoAsync(request.Email);
+        // El envío del correo no debe bloquear la respuesta (ver el mismo
+        // fix en AuthService.RegistrarAsync).
+        _ = ReenviarVerificacionSinFallarLaRespuestaAsync(request.Email);
 
         // Respuesta genérica siempre: no revela si el correo existe o ya
         // está verificado.
@@ -365,5 +369,29 @@ public class AuthController : ControllerBase
             mensaje =
                 "Si el correo está registrado y pendiente de verificar, recibirás un nuevo enlace."
         });
+    }
+
+    private async Task SolicitarResetSinFallarLaRespuestaAsync(string email)
+    {
+        try
+        {
+            await _passwordResetService.SolicitarResetAsync(email);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"No fue posible enviar el correo de restablecimiento: {ex.Message}");
+        }
+    }
+
+    private async Task ReenviarVerificacionSinFallarLaRespuestaAsync(string email)
+    {
+        try
+        {
+            await _emailVerificationService.ReenviarSiNoVerificadoAsync(email);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"No fue posible reenviar el correo de verificación: {ex.Message}");
+        }
     }
 }
