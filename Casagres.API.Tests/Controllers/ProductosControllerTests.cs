@@ -1,4 +1,5 @@
 using Casagres.API.Controllers;
+using Casagres.API.Models;
 using Casagres.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -16,7 +17,11 @@ public class ProductosControllerTests
     {
         _productoService
             .Setup(s => s.ObtenerProductos())
-            .Returns(new List<object> { new { referencia = "REF1" }, new { referencia = "REF2" } });
+            .Returns(new List<ProductoCatalogo>
+            {
+                new() { Referencia = "REF1" },
+                new() { Referencia = "REF2" },
+            });
 
         var resultado = Assert.IsType<OkObjectResult>(CrearController().ObtenerProductos());
 

@@ -1,16 +1,21 @@
+using System.Text.Json;
+using Casagres.API.Models;
 using ClosedXML.Excel;
 
 namespace Casagres.API.Services;
 
 public class ProductoService : IProductoService
 {
+    private const string NombreArchivoExcel = "Ventas_Casagres_Limpio_PowerBI.xlsx";
+    private const string NombreArchivoCache = "cache_catalogo_productos.json";
+
     private readonly IConfiguration _configuration;
 
     // =========================================
     // CACHÉ EN MEMORIA
     // =========================================
 
-    private List<object>? _productosCache;
+    private List<ProductoCatalogo>? _productosCache;
 
     private readonly object _lock = new();
 
@@ -23,7 +28,7 @@ public class ProductoService : IProductoService
     // OBTENER PRODUCTOS
     // =========================================
 
-    public List<object> ObtenerProductos()
+    public List<ProductoCatalogo> ObtenerProductos()
     {
         // Si ya tenemos los productos cargados,
         // los devolvemos inmediatamente.
@@ -35,9 +40,7 @@ public class ProductoService : IProductoService
             }
         }
 
-        // Primera vez:
-        // cargar los productos desde Excel.
-        var productos = CargarProductosDesdeExcel();
+        var productos = CargarProductos();
 
         // Guardar en caché.
         lock (_lock)
@@ -63,16 +66,97 @@ public class ProductoService : IProductoService
     }
 
     // =========================================
+    // CARGAR PRODUCTOS (memoria -> disco -> Excel)
+    // =========================================
+    //
+    // El Excel de ventas tiene decenas de miles de filas: parsearlo con
+    // ClosedXML toma varios segundos. El caché en memoria evita repetirlo
+    // en cada login mientras el proceso siga corriendo, pero un redeploy
+    // (o cualquier reinicio del contenedor) lo pierde por completo. Por
+    // eso también se guarda una copia liviana en disco, en la misma
+    // carpeta persistente que el Excel: si el Excel no cambió desde que
+    // se generó ese caché, se lee ese JSON (instantáneo) en vez de volver
+    // a parsear el archivo completo.
+
+    private List<ProductoCatalogo> CargarProductos()
+    {
+        var rutaExcel = ObtenerRutaArchivoExcel();
+        var rutaCache = ObtenerRutaArchivoCache(rutaExcel);
+
+        if (CacheEnDiscoEsValida(rutaExcel, rutaCache))
+        {
+            var productosDesdeCache = IntentarLeerCacheDeDisco(rutaCache);
+
+            if (productosDesdeCache != null)
+            {
+                Console.WriteLine("Catálogo de productos cargado desde el caché en disco.");
+
+                return productosDesdeCache;
+            }
+        }
+
+        var productos = CargarProductosDesdeExcel(rutaExcel);
+
+        GuardarCacheEnDisco(rutaCache, productos);
+
+        return productos;
+    }
+
+    private static bool CacheEnDiscoEsValida(string rutaExcel, string rutaCache)
+    {
+        if (!File.Exists(rutaCache))
+        {
+            return false;
+        }
+
+        // Si el Excel se modificó después de generarse el caché (por
+        // ejemplo, tras un "Actualizar datos"), el caché quedó obsoleto.
+        return File.GetLastWriteTimeUtc(rutaExcel) <= File.GetLastWriteTimeUtc(rutaCache);
+    }
+
+    private static List<ProductoCatalogo>? IntentarLeerCacheDeDisco(string rutaCache)
+    {
+        try
+        {
+            var json = File.ReadAllText(rutaCache);
+
+            return JsonSerializer.Deserialize<List<ProductoCatalogo>>(json);
+        }
+        catch (Exception ex)
+        {
+            // Un caché corrupto o de un formato antiguo no debe romper la
+            // aplicación: simplemente se ignora y se recarga desde Excel.
+            Console.WriteLine(
+                $"No fue posible leer el caché de productos en disco, se recargará desde Excel: {ex.Message}");
+
+            return null;
+        }
+    }
+
+    private static void GuardarCacheEnDisco(string rutaCache, List<ProductoCatalogo> productos)
+    {
+        try
+        {
+            File.WriteAllText(rutaCache, JsonSerializer.Serialize(productos));
+        }
+        catch (Exception ex)
+        {
+            // Si no se pudo escribir el caché, no pasa nada grave: la
+            // próxima vez simplemente se vuelve a parsear el Excel.
+            Console.WriteLine($"No fue posible guardar el caché de productos en disco: {ex.Message}");
+        }
+    }
+
+    // =========================================
     // CARGAR DESDE EXCEL
     // =========================================
 
-    private List<object> CargarProductosDesdeExcel()
+    private static List<ProductoCatalogo> CargarProductosDesdeExcel(string rutaArchivo)
     {
         Console.WriteLine();
         Console.WriteLine("Cargando catálogo de productos desde Excel...");
 
         var inicio = DateTime.Now;
-        var rutaArchivo = ObtenerRutaArchivoExcel();
 
         using var workbook = new XLWorkbook(rutaArchivo);
         var worksheet = workbook.Worksheets.First();
@@ -94,7 +178,7 @@ public class ProductoService : IProductoService
             throw new Exception("No se encontró la configuración Rutas:CarpetaDatos.");
         }
 
-        var rutaArchivo = Path.Combine(carpetaDatos, "Ventas_Casagres_Limpio_PowerBI.xlsx");
+        var rutaArchivo = Path.Combine(carpetaDatos, NombreArchivoExcel);
 
         if (!File.Exists(rutaArchivo))
         {
@@ -103,6 +187,9 @@ public class ProductoService : IProductoService
 
         return rutaArchivo;
     }
+
+    private static string ObtenerRutaArchivoCache(string rutaExcel) =>
+        Path.Combine(Path.GetDirectoryName(rutaExcel)!, NombreArchivoCache);
 
     private static ColumnasProducto ObtenerColumnas(IXLWorksheet worksheet)
     {
@@ -129,10 +216,10 @@ public class ProductoService : IProductoService
             Planta: Columna("planta"));
     }
 
-    private static List<object> LeerProductosUnicos(IXLWorksheet worksheet, ColumnasProducto columnas)
+    private static List<ProductoCatalogo> LeerProductosUnicos(IXLWorksheet worksheet, ColumnasProducto columnas)
     {
         // Clave = referencia, para descartar duplicados conservando el primero.
-        var productos = new Dictionary<string, object>();
+        var productos = new Dictionary<string, ProductoCatalogo>();
 
         foreach (var fila in worksheet.RowsUsed().Skip(1))
         {
@@ -150,15 +237,15 @@ public class ProductoService : IProductoService
             .ToList();
     }
 
-    private static object LeerProducto(IXLRow fila, ColumnasProducto columnas, string referencia) => new
+    private static ProductoCatalogo LeerProducto(IXLRow fila, ColumnasProducto columnas, string referencia) => new()
     {
-        referencia,
-        descripcion = fila.Cell(columnas.Descripcion).GetString().Trim(),
-        marca = fila.Cell(columnas.Marca).GetString().Trim(),
-        linea = fila.Cell(columnas.Linea).GetString().Trim(),
-        grupo = fila.Cell(columnas.Grupo).GetString().Trim(),
-        clase = fila.Cell(columnas.Clase).GetString().Trim(),
-        planta = fila.Cell(columnas.Planta).GetString().Trim()
+        Referencia = referencia,
+        Descripcion = fila.Cell(columnas.Descripcion).GetString().Trim(),
+        Marca = fila.Cell(columnas.Marca).GetString().Trim(),
+        Linea = fila.Cell(columnas.Linea).GetString().Trim(),
+        Grupo = fila.Cell(columnas.Grupo).GetString().Trim(),
+        Clase = fila.Cell(columnas.Clase).GetString().Trim(),
+        Planta = fila.Cell(columnas.Planta).GetString().Trim()
     };
 
     private static void LogResultado(int cantidad, TimeSpan tiempo)

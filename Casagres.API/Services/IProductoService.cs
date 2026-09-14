@@ -1,8 +1,10 @@
+using Casagres.API.Models;
+
 namespace Casagres.API.Services;
 
 public interface IProductoService
 {
-    List<object> ObtenerProductos();
+    List<ProductoCatalogo> ObtenerProductos();
 
     void LimpiarCache();
 }

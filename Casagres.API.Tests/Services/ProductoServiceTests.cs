@@ -78,12 +78,8 @@ public class ProductoServiceTests : IDisposable
         var productos = CrearServicio().ObtenerProductos();
 
         Assert.Equal(2, productos.Count);
-
-        dynamic primero = productos[0];
-        dynamic segundo = productos[1];
-
-        Assert.Equal("REF1", (string)primero.referencia);
-        Assert.Equal("REF2", (string)segundo.referencia);
+        Assert.Equal("REF1", productos[0].Referencia);
+        Assert.Equal("REF2", productos[1].Referencia);
     }
 
     [Fact]
@@ -96,8 +92,8 @@ public class ProductoServiceTests : IDisposable
 
         var productos = CrearServicio().ObtenerProductos();
 
-        dynamic producto = Assert.Single(productos);
-        Assert.Equal("Primera descripción", (string)producto.descripcion);
+        var producto = Assert.Single(productos);
+        Assert.Equal("Primera descripción", producto.Descripcion);
     }
 
     [Fact]
@@ -154,5 +150,60 @@ public class ProductoServiceTests : IDisposable
         File.Delete(Path.Combine(_carpetaTemporal, "Ventas_Casagres_Limpio_PowerBI.xlsx"));
 
         Assert.Throws<FileNotFoundException>(() => servicio.ObtenerProductos());
+    }
+
+    // ============================================================
+    // CACHÉ EN DISCO (sobrevive a un reinicio del backend)
+    // ============================================================
+
+    [Fact]
+    public void ObtenerProductos_ConUnaInstanciaNueva_UsaElCacheEnDiscoSiElExcelNoCambio()
+    {
+        var rutaExcel = Path.Combine(_carpetaTemporal, "Ventas_Casagres_Limpio_PowerBI.xlsx");
+
+        EscribirExcel(
+            Encabezados,
+            new[] { "REF1", "Producto 1", "Marca A", "Linea A", "Grupo A", "Clase A", "Planta A" });
+
+        CrearServicio().ObtenerProductos();
+
+        // Simula un reinicio del backend (una instancia nueva, sin caché en
+        // memoria) dejando el Excel dañado, pero con una fecha de
+        // modificación anterior a la del caché: si de verdad usa el caché
+        // en disco, ni siquiera debería intentar volver a parsear este
+        // archivo corrupto.
+        File.WriteAllText(rutaExcel, "esto no es un excel válido");
+        File.SetLastWriteTimeUtc(rutaExcel, DateTime.UtcNow.AddDays(-1));
+
+        var productos = CrearServicio().ObtenerProductos();
+
+        var producto = Assert.Single(productos);
+        Assert.Equal("REF1", producto.Referencia);
+    }
+
+    [Fact]
+    public void ObtenerProductos_ConUnaInstanciaNueva_IgnoraElCacheEnDiscoSiElExcelCambioDespues()
+    {
+        var rutaExcel = Path.Combine(_carpetaTemporal, "Ventas_Casagres_Limpio_PowerBI.xlsx");
+
+        EscribirExcel(
+            Encabezados,
+            new[] { "REF1", "Producto viejo", "Marca A", "Linea A", "Grupo A", "Clase A", "Planta A" });
+
+        CrearServicio().ObtenerProductos();
+
+        EscribirExcel(
+            Encabezados,
+            new[] { "REF1", "Producto nuevo", "Marca A", "Linea A", "Grupo A", "Clase A", "Planta A" });
+
+        // Fuerza que el Excel quede con una fecha de modificación
+        // posterior a la del caché, sin depender de la resolución del
+        // reloj del sistema de archivos.
+        File.SetLastWriteTimeUtc(rutaExcel, DateTime.UtcNow.AddMinutes(5));
+
+        var productos = CrearServicio().ObtenerProductos();
+
+        var producto = Assert.Single(productos);
+        Assert.Equal("Producto nuevo", producto.Descripcion);
     }
 }
