@@ -85,6 +85,20 @@ public class MicrosoftAuthService : IMicrosoftAuthService
 
     public MicrosoftAuthService()
     {
+        // En Unix, Environment.GetFolderPath solo devuelve la ruta de
+        // XDG_DATA_HOME si ese directorio YA EXISTE en disco; si no,
+        // devuelve una cadena vacía silenciosamente (sin lanzar ningún
+        // error) y Path.Combine termina generando una ruta relativa que
+        // cae dentro del contenedor (no en el volumen persistente),
+        // perdiéndose en cada redeploy. Por eso hay que crear ese
+        // directorio ANTES de pedirle a .NET que lo resuelva.
+        var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+
+        if (!string.IsNullOrEmpty(xdgDataHome))
+        {
+            Directory.CreateDirectory(xdgDataHome);
+        }
+
         var cacheDirectory =
             Path.Combine(
                 Environment.GetFolderPath(
