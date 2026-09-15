@@ -136,10 +136,6 @@ La aplicación incorpora un proceso de actualización que permite obtener nuevam
 
 El usuario puede seleccionar el horizonte de predicción:
 
-* **1 mes**
-* **3 meses**
-* **6 meses**
-* **12 meses**
 
 Durante la ejecución se muestra:
 
