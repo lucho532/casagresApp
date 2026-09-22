@@ -12,6 +12,7 @@ Original file is located at
 ## LIBRERÍAS (INICIO)
 import glob
 import os
+import re
 from datetime import datetime
 from functools import partial
 
@@ -109,6 +110,27 @@ def load_dataframe(year, sheet_name, ruta_informes, header=None):
     return dataframes
 
 
+def descubrir_years_disponibles(ruta_informes):
+    """
+    Detecta los años a procesar a partir de los archivos que realmente
+    existen en la carpeta, en vez de depender de una lista fija de años.
+
+    Con una lista fija, cada año nuevo (2027, 2028, ...) requeriría volver
+    a tocar este código para agregarlo; si se olvida, esos archivos se
+    seguirían descargando de OneDrive con normalidad pero se excluirían
+    del análisis en silencio, sin ningún error ni aviso.
+    """
+    pattern = os.path.join(ruta_informes, "INFORMES DE VENTA CASAGRES*.xls*")
+
+    years = {
+        match.group(1)
+        for archivo in glob.glob(pattern)
+        if (match := re.search(r"(\d{4})\.xls\w*$", os.path.basename(archivo), re.IGNORECASE))
+    }
+
+    return sorted(years)
+
+
 def load_all_dataframe(sheet_name, ruta_informes):
     """
     Carga todos los años y segrega las columnas principales de las columnas junk.
@@ -130,7 +152,7 @@ def load_all_dataframe(sheet_name, ruta_informes):
         print("El nombre de informe no se encuentra en la base de datos")
         header = 0
 
-    years = ["2020", "2021", "2022", "2023", "2024", "2025", "2026"]
+    years = descubrir_years_disponibles(ruta_informes)
 
     columnas_limpias = [
         "referencia_producto",
