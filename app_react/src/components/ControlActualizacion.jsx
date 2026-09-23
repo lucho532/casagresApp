@@ -214,6 +214,10 @@ function ControlActualizacion({
               Horizonte en meses:
             </label>
 
+            <span className="etiqueta-horizonte" aria-hidden="true">
+              Meses
+            </span>
+
             <input
               id="horizonte"
               type="number"
@@ -281,7 +285,9 @@ function ControlActualizacion({
             {!estadoActualizacion.ejecutando &&
               estadoActualizacion.error &&
               estadoActualizacion.error !== estadoActualizacion.estado && (
-                <div className="estado-detalle">{estadoActualizacion.error}</div>
+                <div className="estado-detalle">
+                  {estadoActualizacion.error}
+                </div>
               )}
           </div>
         )}
