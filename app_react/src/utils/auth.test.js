@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { obtenerNombre, obtenerRol, obtenerToken } from "./auth";
+import {
+  obtenerFotoPerfilMicrosoft,
+  obtenerNombre,
+  obtenerRol,
+  obtenerToken,
+} from "./auth";
 
 const ROL_CLAIM = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
 
@@ -95,6 +100,18 @@ describe("obtenerNombre", () => {
     expect(obtenerNombre()).toBeNull();
 
     vi.restoreAllMocks();
+  });
+});
+
+describe("obtenerFotoPerfilMicrosoft", () => {
+  it("devuelve null cuando no hay ninguna foto guardada", () => {
+    expect(obtenerFotoPerfilMicrosoft()).toBeNull();
+  });
+
+  it("devuelve la foto guardada en sessionStorage", () => {
+    sessionStorage.setItem("foto_perfil_microsoft", "data:image/jpeg;base64,abc123");
+
+    expect(obtenerFotoPerfilMicrosoft()).toBe("data:image/jpeg;base64,abc123");
   });
 });
 

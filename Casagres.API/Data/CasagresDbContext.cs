@@ -68,6 +68,10 @@ public class CasagresDbContext : DbContext
             entity.Property(e => e.EmailVerificado)
                 .HasColumnName("email_verificado")
                 .IsRequired();
+
+            entity.Property(e => e.FotoUrl)
+                .HasColumnName("foto_url")
+                .HasMaxLength(500);
         });
 
         modelBuilder.Entity<PasswordResetToken>(entity =>

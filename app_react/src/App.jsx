@@ -15,7 +15,7 @@ import Productos from "./pages/Productos";
 import Administracion from "./pages/Administracion";
 import EstadoCargando from "./components/EstadoCargando";
 import { obtenerDashboard, obtenerPerfil } from "./services/api";
-import { obtenerRol } from "./utils/auth";
+import { obtenerRol, obtenerFotoPerfilMicrosoft } from "./utils/auth";
 
 import "./App.css";
 
@@ -125,6 +125,9 @@ function App() {
 
   const cerrarSesion = () => {
     sessionStorage.removeItem("token");
+    // Evita que, si alguien más inicia sesión luego en la misma pestaña con
+    // otra cuenta, siga mostrando la foto de Microsoft de la sesión anterior.
+    sessionStorage.removeItem("foto_perfil_microsoft");
     setAutenticado(false);
     setPaginaActual("inicio");
   };
@@ -221,6 +224,7 @@ function App() {
         <Header
           paginaActual={paginaActual}
           ultimaActualizacion={ultimaActualizacion}
+          fotoUrl={perfil?.fotoUrl || obtenerFotoPerfilMicrosoft()}
         />
 
         <main className="contenido">{renderizarPagina()}</main>

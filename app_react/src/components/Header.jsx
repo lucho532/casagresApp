@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { obtenerNombre, obtenerRol } from "../utils/auth";
 import "../styles/Header.css";
-function Header({ paginaActual, ultimaActualizacion }) {
+function Header({ paginaActual, ultimaActualizacion, fotoUrl }) {
   const nombreUsuario = obtenerNombre();
   const rolUsuario = obtenerRol();
+
+  // Si la URL de la foto (viene de Google) falla al cargar -por ejemplo,
+  // si expiró o el usuario la eliminó-, se cae de vuelta al ícono genérico
+  // en vez de mostrar un ícono de imagen rota.
+  const [errorAlCargarFoto, setErrorAlCargarFoto] = useState(false);
 
   const titulos = {
     inicio: "Inicio",
@@ -45,7 +51,19 @@ function Header({ paginaActual, ultimaActualizacion }) {
       </div>
 
       <div className="header-usuario">
-        <div className="header-usuario-icono">👤</div>
+        <div className="header-usuario-icono">
+          {fotoUrl && !errorAlCargarFoto ? (
+            <img
+              src={fotoUrl}
+              alt="Foto de perfil"
+              className="header-usuario-foto"
+              referrerPolicy="no-referrer"
+              onError={() => setErrorAlCargarFoto(true)}
+            />
+          ) : (
+            "👤"
+          )}
+        </div>
 
         <div className="header-usuario-info">
           <span className="header-usuario-nombre">

@@ -397,4 +397,82 @@ public class AuthServiceTests
         var usuario = await db.Usuarios.SingleAsync(u => u.Email == "juan@ejemplo.com");
         Assert.Equal(Roles.Admin, usuario.Rol);
     }
+
+    [Fact]
+    public async Task LoginConGoogleAsync_ConUsuarioNuevo_GuardaLaFotoDePerfil()
+    {
+        await using var db = CrearContexto();
+
+        var handler = new FakeHttpMessageHandler().EncolarRespuesta(
+            HttpStatusCode.OK,
+            """{"email":"nuevo@ejemplo.com","name":"Nuevo Usuario","picture":"https://foto.ejemplo.com/nuevo.jpg"}""");
+
+        var servicio = CrearServicio(db, httpHandler: handler);
+
+        await servicio.LoginConGoogleAsync("access-token-valido");
+
+        var usuarioCreado = await db.Usuarios.SingleAsync(u => u.Email == "nuevo@ejemplo.com");
+        Assert.Equal("https://foto.ejemplo.com/nuevo.jpg", usuarioCreado.FotoUrl);
+    }
+
+    [Fact]
+    public async Task LoginConGoogleAsync_ConUsuarioExistente_ActualizaLaFotoDePerfil()
+    {
+        await using var db = CrearContexto();
+
+        db.Usuarios.Add(new Usuario
+        {
+            UsuarioNombre = "juan@ejemplo.com",
+            PasswordHash = "hash",
+            Email = "juan@ejemplo.com",
+            Rol = Roles.Usuario,
+            Activo = true,
+            FotoUrl = "https://foto.ejemplo.com/vieja.jpg",
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeHttpMessageHandler().EncolarRespuesta(
+            HttpStatusCode.OK,
+            """{"email":"juan@ejemplo.com","name":"Juan","picture":"https://foto.ejemplo.com/nueva.jpg"}""");
+
+        var servicio = CrearServicio(db, httpHandler: handler);
+
+        await servicio.LoginConGoogleAsync("access-token-valido");
+
+        var usuario = await db.Usuarios.SingleAsync(u => u.Email == "juan@ejemplo.com");
+        Assert.Equal("https://foto.ejemplo.com/nueva.jpg", usuario.FotoUrl);
+    }
+
+    [Fact]
+    public async Task LoginConGoogleAsync_ConUsuarioExistenteYRespuestaSinFoto_NoLeBorraLaFotoQueYaTenia()
+    {
+        // Ejercita la misma ruta compartida que usa Microsoft (cuyo login no
+        // se puede probar aquí directamente: valida el id_token contra el
+        // endpoint real de descubrimiento OIDC de Azure, sin ningún punto de
+        // inyección para simularlo). Microsoft nunca aporta "picture", así
+        // que esto reproduce exactamente esa misma condición.
+        await using var db = CrearContexto();
+
+        db.Usuarios.Add(new Usuario
+        {
+            UsuarioNombre = "juan@ejemplo.com",
+            PasswordHash = "hash",
+            Email = "juan@ejemplo.com",
+            Rol = Roles.Usuario,
+            Activo = true,
+            FotoUrl = "https://foto.ejemplo.com/google.jpg",
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeHttpMessageHandler().EncolarRespuesta(
+            HttpStatusCode.OK,
+            """{"email":"juan@ejemplo.com","name":"Juan"}""");
+
+        var servicio = CrearServicio(db, httpHandler: handler);
+
+        await servicio.LoginConGoogleAsync("access-token-valido");
+
+        var usuario = await db.Usuarios.SingleAsync(u => u.Email == "juan@ejemplo.com");
+        Assert.Equal("https://foto.ejemplo.com/google.jpg", usuario.FotoUrl);
+    }
 }
