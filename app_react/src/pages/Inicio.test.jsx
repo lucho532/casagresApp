@@ -95,9 +95,12 @@ describe("Inicio", () => {
 
     const lista = await screen.findByText("Productos con mayor demanda");
     const contenedor = lista.closest(".inicio-ranking").querySelector(".inicio-ranking-lista");
-    const items = within(contenedor).getAllByText(/REF\d/);
+    const items = contenedor.querySelectorAll(".ranking-producto strong");
 
-    expect(items.map((el) => el.textContent)).toEqual(["REF2", "REF1"]);
+    expect(Array.from(items).map((el) => el.textContent)).toEqual([
+      "REF2",
+      "REF1",
+    ]);
   });
 
   it("muestra 'Sin método' cuando el producto no tiene método asignado", async () => {
@@ -105,7 +108,7 @@ describe("Inicio", () => {
 
     render(<Inicio {...propsBase} />);
 
-    expect(await screen.findByText("Sin método")).toBeInTheDocument();
+    expect(await screen.findByText(/Sin método/)).toBeInTheDocument();
   });
 
   it("muestra el estado vacío cuando el mes seleccionado no tiene productos", async () => {
@@ -155,6 +158,8 @@ describe("Inicio", () => {
     ).closest(".inicio-kpi");
 
     expect(tarjetaMayorDemanda).toHaveTextContent("Ladrillo hueco");
+    // El código del producto se sigue mostrando junto al nombre.
+    expect(tarjetaMayorDemanda).toHaveTextContent("REF2");
 
     const lista = screen
       .getByText("Productos con mayor demanda")
@@ -163,6 +168,10 @@ describe("Inicio", () => {
 
     expect(within(lista).getByText("Ladrillo hueco")).toBeInTheDocument();
     expect(within(lista).getByText("Teja de barro")).toBeInTheDocument();
+    // El código sigue apareciendo junto al método, en la línea secundaria.
+    expect(lista).toHaveTextContent("REF1");
+    expect(lista).toHaveTextContent("REF2");
+    // El nombre nunca aparece como texto exacto igual al código crudo.
     expect(screen.queryByText("REF1")).not.toBeInTheDocument();
     expect(screen.queryByText("REF2")).not.toBeInTheDocument();
   });

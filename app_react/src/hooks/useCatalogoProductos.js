@@ -40,5 +40,14 @@ export function useCatalogoProductos() {
   const obtenerNombreProducto = (referencia) =>
     nombresPorReferencia[referencia] || referencia;
 
-  return { obtenerNombreProducto };
+  // Para mostrar "Nombre · CÓDIGO" junto al nombre. Si el catálogo aún no
+  // cargó (o la referencia no aparece en él), obtenerNombreProducto ya cae
+  // de vuelta al código, así que aquí se evita repetirlo dos veces.
+  const obtenerNombreConCodigo = (referencia) => {
+    const nombre = obtenerNombreProducto(referencia);
+
+    return nombre === referencia ? nombre : `${nombre} · ${referencia}`;
+  };
+
+  return { obtenerNombreProducto, obtenerNombreConCodigo };
 }

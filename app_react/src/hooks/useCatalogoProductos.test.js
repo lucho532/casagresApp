@@ -65,4 +65,28 @@ describe("useCatalogoProductos", () => {
 
     expect(result.current.obtenerNombreProducto("REF1")).toBe("REF1");
   });
+
+  describe("obtenerNombreConCodigo", () => {
+    it("antes de cargar el catálogo, devuelve solo la referencia (sin duplicarla)", () => {
+      obtenerProductos.mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() => useCatalogoProductos());
+
+      expect(result.current.obtenerNombreConCodigo("REF1")).toBe("REF1");
+    });
+
+    it("una vez cargado el catálogo, combina el nombre y el código", async () => {
+      obtenerProductos.mockResolvedValue({
+        productos: [{ referencia: "REF1", descripcion: "Teja de barro" }],
+      });
+
+      const { result } = renderHook(() => useCatalogoProductos());
+
+      await waitFor(() =>
+        expect(result.current.obtenerNombreConCodigo("REF1")).toBe(
+          "Teja de barro · REF1",
+        ),
+      );
+    });
+  });
 });

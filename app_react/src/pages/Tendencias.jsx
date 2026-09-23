@@ -280,6 +280,10 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
             <strong>
               {obtenerNombreProducto(productoSeleccionado.referencia)}
             </strong>
+
+            <span className="info-codigo">
+              {productoSeleccionado.referencia}
+            </span>
           </div>
 
           <div className="info-producto">

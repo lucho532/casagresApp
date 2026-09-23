@@ -184,7 +184,13 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
           <span>PRINCIPAL FOCO DE ATENCIÓN</span>
 
           {mayorDemanda.length > 0 ? (
-            <h3>{obtenerNombreProducto(mayorDemanda[0].referencia)}</h3>
+            <>
+              <h3>{obtenerNombreProducto(mayorDemanda[0].referencia)}</h3>
+
+              <small className="decision-recomendacion-codigo">
+                {mayorDemanda[0].referencia}
+              </small>
+            </>
           ) : (
             <h3>No hay información disponible</h3>
           )}
@@ -265,6 +271,8 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
 
                     <td>
                       <strong>{obtenerNombreProducto(producto.referencia)}</strong>
+
+                      <span className="codigo-tabla">{producto.referencia}</span>
                     </td>
 
                     <td>

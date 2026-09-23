@@ -191,6 +191,12 @@ describe("Tendencias", () => {
 
     expect(valorInfo("Producto seleccionado")).toBe("Teja de barro");
     expect(screen.getByRole("option", { name: "Teja de barro" })).toBeInTheDocument();
+
+    // El código del producto se sigue mostrando junto al nombre.
+    const contenedor = screen
+      .getByText("Producto seleccionado")
+      .closest(".info-producto");
+    expect(contenedor).toHaveTextContent("REF1");
   });
 
   it("no muestra el panel de información del producto cuando no hay productos", async () => {

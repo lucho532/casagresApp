@@ -16,7 +16,8 @@ function Inicio({
     "No fue posible cargar el resumen de la plataforma.",
   );
 
-  const { obtenerNombreProducto } = useCatalogoProductos();
+  const { obtenerNombreProducto, obtenerNombreConCodigo } =
+    useCatalogoProductos();
 
   // =========================================
   // MES SELECCIONADO
@@ -182,7 +183,7 @@ function Inicio({
 
             <small>
               {productoPrincipal
-                ? obtenerNombreProducto(productoPrincipal.referencia)
+                ? obtenerNombreConCodigo(productoPrincipal.referencia)
                 : "Sin datos"}
             </small>
           </div>
@@ -236,7 +237,9 @@ function Inicio({
                 <div className="ranking-producto">
                   <strong>{obtenerNombreProducto(producto.referencia)}</strong>
 
-                  <span>{producto.metodo || "Sin método"}</span>
+                  <span>
+                    {producto.referencia} · {producto.metodo || "Sin método"}
+                  </span>
                 </div>
 
                 <div className="ranking-demanda">

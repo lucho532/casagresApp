@@ -31,11 +31,15 @@ function SelectorProducto({
     }
   };
 
+  const seleccionarProducto = (producto) => {
+    onSeleccionar(producto.referencia);
+    setBusqueda("");
+    setMostrarBusqueda(false);
+  };
+
   const seleccionarPrimerResultado = () => {
     if (productosFiltrados.length > 0) {
-      onSeleccionar(productosFiltrados[0].referencia);
-      setBusqueda("");
-      setMostrarBusqueda(false);
+      seleccionarProducto(productosFiltrados[0]);
     }
   };
 
@@ -59,7 +63,7 @@ function SelectorProducto({
           type="button"
           className={`boton-busqueda ${mostrarBusqueda ? "activo" : ""}`}
           onClick={alternarBusqueda}
-          title="Buscar referencia"
+          title="Buscar producto"
         >
           🔍
         </button>
@@ -69,7 +73,7 @@ function SelectorProducto({
         <div className="campo-busqueda-producto">
           <input
             type="text"
-            placeholder="Buscar referencia..."
+            placeholder="Buscar producto..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             onKeyDown={(e) => {
@@ -81,10 +85,31 @@ function SelectorProducto({
           />
 
           {busqueda && (
-            <span className="resultado-busqueda">
-              {productosFiltrados.length} resultado
-              {productosFiltrados.length !== 1 ? "s" : ""}
-            </span>
+            <>
+              <span className="resultado-busqueda">
+                {productosFiltrados.length} resultado
+                {productosFiltrados.length !== 1 ? "s" : ""}
+              </span>
+
+              <ul className="resultados-busqueda-lista">
+                {productosFiltrados.length === 0 ? (
+                  <li className="resultado-busqueda-vacio">
+                    Sin coincidencias
+                  </li>
+                ) : (
+                  productosFiltrados.map((producto) => (
+                    <li key={producto.referencia}>
+                      <button
+                        type="button"
+                        onClick={() => seleccionarProducto(producto)}
+                      >
+                        {obtenerEtiquetaProducto(producto)}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </>
           )}
         </div>
       )}

@@ -80,7 +80,9 @@ describe("DemandaFutura", () => {
     await esperarCarga();
 
     const principal = document.querySelector(".tarjeta-demanda-principal");
-    expect(within(principal).getByText("REF1")).toBeInTheDocument();
+    expect(
+      within(principal).getByRole("heading", { name: "REF1" }),
+    ).toBeInTheDocument();
   });
 
   it("excluye del selector los productos con pronóstico cero", async () => {
@@ -154,7 +156,9 @@ describe("DemandaFutura", () => {
     await usuario.selectOptions(screen.getByRole("combobox"), "REF2");
 
     const principal = document.querySelector(".tarjeta-demanda-principal");
-    expect(within(principal).getByText("REF2")).toBeInTheDocument();
+    expect(
+      within(principal).getByRole("heading", { name: "REF2" }),
+    ).toBeInTheDocument();
     expect(valorCard("Demanda estimada")).toBe("300");
   });
 
@@ -182,6 +186,9 @@ describe("DemandaFutura", () => {
     const principal = document.querySelector(".tarjeta-demanda-principal");
     expect(within(principal).getByText("Teja de barro")).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Teja de barro" })).toBeInTheDocument();
+
+    // El código del producto se sigue mostrando junto al nombre.
+    expect(within(principal).getByText("REF1")).toBeInTheDocument();
   });
 
   it("muestra un estado vacío cuando no hay pronósticos disponibles", async () => {

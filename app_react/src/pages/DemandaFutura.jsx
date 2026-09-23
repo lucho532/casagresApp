@@ -235,6 +235,10 @@ function DemandaFutura({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }
 
                   <h3>{obtenerNombreProducto(productoSeleccionado.referencia)}</h3>
 
+                  <span className="detalle-codigo">
+                    {productoSeleccionado.referencia}
+                  </span>
+
                   <p>Proyección para {mesPronostico}</p>
                 </div>
 

@@ -136,6 +136,23 @@
 }
 
 /* =========================================
+   CÓDIGO DEL PRODUCTO
+========================================= */
+
+.info-codigo {
+  position: relative;
+  z-index: 1;
+
+  display: block;
+
+  margin-top: 8px;
+
+  font-size: 11px;
+
+  color: var(--texto-secundario);
+}
+
+/* =========================================
    SELECTOR DE PRODUCTO EN SU PROPIA FILA
 ========================================= */
 
