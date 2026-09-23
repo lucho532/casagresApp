@@ -27,13 +27,6 @@ export const obtenerRol = () => {
   }
 };
 
-// La foto de perfil de Microsoft no viaja en el JWT (se obtiene aparte,
-// directo del navegador contra Microsoft Graph; ver main.jsx) y se guarda
-// como data URL en sessionStorage, no en el token.
-export const obtenerFotoPerfilMicrosoft = () => {
-  return sessionStorage.getItem("foto_perfil_microsoft");
-};
-
 export const obtenerNombre = () => {
   const token = obtenerToken();
 

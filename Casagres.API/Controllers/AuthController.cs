@@ -64,8 +64,7 @@ public class AuthController : ControllerBase
             usuario.Nombre,
             usuario.Email,
             usuario.Rol,
-            usuario.Activo,
-            usuario.FotoUrl
+            usuario.Activo
         });
     }
 

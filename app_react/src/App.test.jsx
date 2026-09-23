@@ -127,7 +127,6 @@ describe("App", () => {
 
   it("al cerrar sesión desde la pantalla de cuenta pendiente, vuelve al login", async () => {
     sessionStorage.setItem("token", "un-token-cualquiera");
-    sessionStorage.setItem("foto_perfil_microsoft", "data:image/jpeg;base64,abc123");
     obtenerPerfil.mockResolvedValue(perfilPendiente);
     const usuario = userEvent.setup();
 
@@ -140,8 +139,5 @@ describe("App", () => {
       screen.getByRole("button", { name: "Iniciar sesión" }),
     ).toBeInTheDocument();
     expect(sessionStorage.getItem("token")).toBeNull();
-    // Para que una cuenta distinta que inicie sesión después, en la misma
-    // pestaña, no herede por accidente la foto de Microsoft de esta sesión.
-    expect(sessionStorage.getItem("foto_perfil_microsoft")).toBeNull();
   });
 });

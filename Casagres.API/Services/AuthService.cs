@@ -285,14 +285,7 @@ public class AuthService : IAuthService
             ? nombreElemento.GetString()
             : null;
 
-        // Google siempre incluye "picture" en este endpoint (una URL
-        // pública a la foto de perfil de la cuenta); Microsoft no ofrece
-        // nada equivalente en su id_token, así que solo Google la aporta.
-        var fotoUrl = perfil.RootElement.TryGetProperty("picture", out var fotoElemento)
-            ? fotoElemento.GetString()
-            : null;
-
-        return new DatosUsuarioExterno(email, nombre, fotoUrl);
+        return new DatosUsuarioExterno(email, nombre);
     }
 
     // ============================================================
@@ -366,26 +359,18 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.Email == datos.Email);
 
         return usuarioExistente != null
-            ? await ActualizarUsuarioExistenteAsync(usuarioExistente, datos)
+            ? await ActualizarUsuarioExistenteAsync(usuarioExistente, datos.Nombre)
             : await CrearUsuarioExternoAsync(datos, sufijoUsuario);
     }
 
-    private async Task<Usuario?> ActualizarUsuarioExistenteAsync(Usuario usuario, DatosUsuarioExterno datos)
+    private async Task<Usuario?> ActualizarUsuarioExistenteAsync(Usuario usuario, string? nombre)
     {
         if (!usuario.Activo)
             return null;
 
-        if (!string.IsNullOrWhiteSpace(datos.Nombre))
+        if (!string.IsNullOrWhiteSpace(nombre))
         {
-            usuario.Nombre = datos.Nombre;
-        }
-
-        // Solo se sobrescribe si este login sí trajo una foto (Google): si
-        // el usuario inicia sesión con Microsoft (que no aporta ninguna),
-        // no se debe borrar una foto de Google que ya tenía guardada.
-        if (!string.IsNullOrWhiteSpace(datos.FotoUrl))
-        {
-            usuario.FotoUrl = datos.FotoUrl;
+            usuario.Nombre = nombre;
         }
 
         // Si inició sesión con un proveedor externo, ese proveedor ya
@@ -428,31 +413,18 @@ public class AuthService : IAuthService
             if (usuarioExistente == null)
                 throw;
 
-            return await ActualizarNombreSiCorrespondeAsync(usuarioExistente, datos);
+            return await ActualizarNombreSiCorrespondeAsync(usuarioExistente, datos.Nombre);
         }
     }
 
-    private async Task<Usuario?> ActualizarNombreSiCorrespondeAsync(Usuario usuario, DatosUsuarioExterno datos)
+    private async Task<Usuario?> ActualizarNombreSiCorrespondeAsync(Usuario usuario, string? nombre)
     {
         if (!usuario.Activo)
             return null;
 
-        var huboCambios = false;
-
-        if (!string.IsNullOrWhiteSpace(datos.Nombre))
+        if (!string.IsNullOrWhiteSpace(nombre))
         {
-            usuario.Nombre = datos.Nombre;
-            huboCambios = true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(datos.FotoUrl))
-        {
-            usuario.FotoUrl = datos.FotoUrl;
-            huboCambios = true;
-        }
-
-        if (huboCambios)
-        {
+            usuario.Nombre = nombre;
             await _db.SaveChangesAsync();
         }
 
@@ -490,8 +462,7 @@ public class AuthService : IAuthService
             FechaCreacion = DateTime.UtcNow,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
             // El proveedor externo (Microsoft/Google) ya verificó este correo.
-            EmailVerificado = true,
-            FotoUrl = datos.FotoUrl
+            EmailVerificado = true
         };
 
     // ============================================================
@@ -526,5 +497,5 @@ public class AuthService : IAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private readonly record struct DatosUsuarioExterno(string Email, string? Nombre, string? FotoUrl = null);
+    private readonly record struct DatosUsuarioExterno(string Email, string? Nombre);
 }

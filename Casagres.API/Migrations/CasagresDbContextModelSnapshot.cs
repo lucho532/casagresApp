@@ -153,11 +153,6 @@ namespace Casagres.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fecha_creacion");
 
-                    b.Property<string>("FotoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("foto_url");
-
                     b.Property<string>("Nombre")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
