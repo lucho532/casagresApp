@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useDashboard } from "../hooks/useDashboard";
+import { useCatalogoProductos } from "../hooks/useCatalogoProductos";
 import { formatearCantidad } from "../utils/formato";
 import EstadoCargando from "../components/EstadoCargando";
 import MensajeError from "../components/MensajeError";
@@ -10,6 +11,8 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   const { dashboard, cargando, error } = useDashboard(
     "No fue posible cargar la información para la toma de decisiones.",
   );
+
+  const { obtenerNombreProducto } = useCatalogoProductos();
 
   // =========================================
   // PRODUCTOS
@@ -102,7 +105,7 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
           <h2>Enfoque en decisiones</h2>
 
           <p>
-            Identifica las referencias que requieren mayor atención a partir de
+            Identifica los productos que requieren mayor atención a partir de
             la demanda proyectada.
           </p>
         </div>
@@ -181,13 +184,13 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
           <span>PRINCIPAL FOCO DE ATENCIÓN</span>
 
           {mayorDemanda.length > 0 ? (
-            <h3>{mayorDemanda[0].referencia}</h3>
+            <h3>{obtenerNombreProducto(mayorDemanda[0].referencia)}</h3>
           ) : (
             <h3>No hay información disponible</h3>
           )}
 
           <p>
-            Esta referencia presenta la mayor demanda proyectada entre los
+            Este producto presenta la mayor demanda proyectada entre los
             productos analizados.
           </p>
         </div>
@@ -208,7 +211,7 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       <div className="decision-tabla">
         <div className="decision-tabla-header">
           <div>
-            <h3>Referencias prioritarias</h3>
+            <h3>Productos prioritarios</h3>
 
             <p>Productos ordenados según su demanda proyectada.</p>
           </div>
@@ -224,7 +227,7 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
               <tr>
                 <th>Posición</th>
 
-                <th>Referencia</th>
+                <th>Producto</th>
 
                 <th>Demanda proyectada</th>
 
@@ -261,7 +264,7 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                     </td>
 
                     <td>
-                      <strong>{producto.referencia}</strong>
+                      <strong>{obtenerNombreProducto(producto.referencia)}</strong>
                     </td>
 
                     <td>
@@ -331,10 +334,10 @@ function Decisiones({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
             <div className="interpretacion-icono">1</div>
 
             <div>
-              <strong>Prioriza las referencias</strong>
+              <strong>Prioriza los productos</strong>
 
               <p>
-                Las referencias ubicadas en las primeras posiciones concentran
+                Los productos ubicados en las primeras posiciones concentran
                 una mayor demanda proyectada.
               </p>
             </div>

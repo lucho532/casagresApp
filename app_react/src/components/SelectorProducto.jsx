@@ -6,6 +6,7 @@ function SelectorProducto({
   valorSeleccionado,
   onSeleccionar,
   etiqueta = "Producto",
+  obtenerEtiquetaProducto = (producto) => producto.referencia,
 }) {
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -18,9 +19,9 @@ function SelectorProducto({
     }
 
     return productos.filter((producto) =>
-      producto.referencia.toString().toLowerCase().includes(texto),
+      obtenerEtiquetaProducto(producto).toString().toLowerCase().includes(texto),
     );
-  }, [productos, busqueda]);
+  }, [productos, busqueda, obtenerEtiquetaProducto]);
 
   const alternarBusqueda = () => {
     setMostrarBusqueda((actual) => !actual);
@@ -49,7 +50,7 @@ function SelectorProducto({
         >
           {productosFiltrados.map((producto) => (
             <option key={producto.referencia} value={producto.referencia}>
-              {producto.referencia}
+              {obtenerEtiquetaProducto(producto)}
             </option>
           ))}
         </select>

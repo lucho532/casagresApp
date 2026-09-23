@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useDashboard } from "../hooks/useDashboard";
+import { useCatalogoProductos } from "../hooks/useCatalogoProductos";
 import { formatearNumero, formatearMes } from "../utils/formato";
 import SelectorProducto from "../components/SelectorProducto";
 import TarjetaPeriodo from "../components/TarjetaPeriodo";
@@ -13,6 +14,8 @@ function DemandaFutura({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }
     cargando,
     error,
   } = useDashboard("No fue posible cargar las estimaciones de demanda.");
+
+  const { obtenerNombreProducto } = useCatalogoProductos();
 
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
 
@@ -208,6 +211,9 @@ function DemandaFutura({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }
               productos={productos}
               valorSeleccionado={referenciaEfectiva}
               onSeleccionar={setReferenciaSeleccionada}
+              obtenerEtiquetaProducto={(producto) =>
+                obtenerNombreProducto(producto.referencia)
+              }
             />
           </div>
 
@@ -225,9 +231,9 @@ function DemandaFutura({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }
 
               <div className="tarjeta-demanda-header">
                 <div>
-                  <span className="detalle-etiqueta">REFERENCIA</span>
+                  <span className="detalle-etiqueta">PRODUCTO</span>
 
-                  <h3>{productoSeleccionado.referencia}</h3>
+                  <h3>{obtenerNombreProducto(productoSeleccionado.referencia)}</h3>
 
                   <p>Proyección para {mesPronostico}</p>
                 </div>

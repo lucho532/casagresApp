@@ -2,11 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Decisiones from "./Decisiones";
-import { obtenerDashboard } from "../services/api";
+import { obtenerDashboard, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -133,6 +138,23 @@ describe("Decisiones", () => {
     const tabla = screen.getByRole("table");
     const filaRef1 = within(tabla).getByText("REF1").closest("tr");
     expect(within(filaRef1).getByText("400 — 600")).toBeInTheDocument();
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerProductos.mockResolvedValue({
+      productos: [{ referencia: "REF1", descripcion: "Teja de barro" }],
+    });
+
+    render(<Decisiones mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+
+    const recomendacion = document.querySelector(".decision-recomendacion");
+    expect(within(recomendacion).getByText("Teja de barro")).toBeInTheDocument();
+
+    const tabla = screen.getByRole("table");
+    expect(within(tabla).getByText("Teja de barro")).toBeInTheDocument();
+    expect(within(tabla).queryByText("REF1")).not.toBeInTheDocument();
   });
 
   it("muestra un estado vacío cuando el mes no tiene productos", async () => {

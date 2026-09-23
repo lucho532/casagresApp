@@ -2,11 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DemandaFutura from "./DemandaFutura";
-import { obtenerDashboard } from "../services/api";
+import { obtenerDashboard, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -163,6 +168,20 @@ describe("DemandaFutura", () => {
     expect(within(modeloInfo).getByText("KRR")).toBeInTheDocument();
     expect(within(modeloInfo).getByText("90%")).toBeInTheDocument();
     expect(within(modeloInfo).getByText("Procesado")).toBeInTheDocument();
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerProductos.mockResolvedValue({
+      productos: [{ referencia: "REF1", descripcion: "Teja de barro" }],
+    });
+
+    render(<DemandaFutura mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+
+    const principal = document.querySelector(".tarjeta-demanda-principal");
+    expect(within(principal).getByText("Teja de barro")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Teja de barro" })).toBeInTheDocument();
   });
 
   it("muestra un estado vacío cuando no hay pronósticos disponibles", async () => {

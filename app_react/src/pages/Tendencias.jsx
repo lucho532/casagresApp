@@ -12,6 +12,7 @@ import {
 
 import { obtenerHistorico } from "../services/api";
 import { useDashboard } from "../hooks/useDashboard";
+import { useCatalogoProductos } from "../hooks/useCatalogoProductos";
 import SelectorProducto from "../components/SelectorProducto";
 import TarjetaPeriodo from "../components/TarjetaPeriodo";
 import EstadoCargando from "../components/EstadoCargando";
@@ -24,6 +25,8 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
     cargando,
     error,
   } = useDashboard("No fue posible obtener la información de ventas.");
+
+  const { obtenerNombreProducto } = useCatalogoProductos();
 
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
   const [historico, setHistorico] = useState([]);
@@ -272,9 +275,11 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       {productoSeleccionado && (
         <div className="tendencias-info">
           <div className="info-producto">
-            <span className="info-label">Referencia</span>
+            <span className="info-label">Producto seleccionado</span>
 
-            <strong>{productoSeleccionado.referencia}</strong>
+            <strong>
+              {obtenerNombreProducto(productoSeleccionado.referencia)}
+            </strong>
           </div>
 
           <div className="info-producto">
@@ -308,6 +313,9 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
           productos={productos}
           valorSeleccionado={referenciaEfectiva}
           onSeleccionar={setReferenciaSeleccionada}
+          obtenerEtiquetaProducto={(producto) =>
+            obtenerNombreProducto(producto.referencia)
+          }
         />
       </div>
 

@@ -2,11 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Inicio from "./Inicio";
-import { obtenerDashboard } from "../services/api";
+import { obtenerDashboard, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -132,6 +137,34 @@ describe("Inicio", () => {
     await usuario.selectOptions(screen.getByRole("combobox"), "2025-02-01");
 
     expect(setMesSeleccionado).toHaveBeenCalledWith("2025-02-01");
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerProductos.mockResolvedValue({
+      productos: [
+        { referencia: "REF1", descripcion: "Teja de barro" },
+        { referencia: "REF2", descripcion: "Ladrillo hueco" },
+      ],
+    });
+
+    render(<Inicio {...propsBase} />);
+
+    const tarjetaMayorDemanda = (
+      await screen.findByText("Mayor demanda")
+    ).closest(".inicio-kpi");
+
+    expect(tarjetaMayorDemanda).toHaveTextContent("Ladrillo hueco");
+
+    const lista = screen
+      .getByText("Productos con mayor demanda")
+      .closest(".inicio-ranking")
+      .querySelector(".inicio-ranking-lista");
+
+    expect(within(lista).getByText("Ladrillo hueco")).toBeInTheDocument();
+    expect(within(lista).getByText("Teja de barro")).toBeInTheDocument();
+    expect(screen.queryByText("REF1")).not.toBeInTheDocument();
+    expect(screen.queryByText("REF2")).not.toBeInTheDocument();
   });
 
   it("al hacer clic en un acceso rápido, llama a cambiarPagina con el id correspondiente", async () => {
