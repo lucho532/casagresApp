@@ -229,6 +229,11 @@ function ControlActualizacion({
               value={horizonte}
               onChange={manejarCambioHorizonte}
               onBlur={manejarBlurHorizonte}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  ejecutarActualizacion();
+                }
+              }}
               disabled={actualizando}
             />
           </div>

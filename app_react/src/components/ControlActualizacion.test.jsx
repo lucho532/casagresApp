@@ -96,6 +96,35 @@ describe("ControlActualizacion", () => {
     expect(actualizarDatos).toHaveBeenCalledWith(6);
   });
 
+  it("al presionar Enter en el campo de horizonte, ejecuta la actualización", async () => {
+    obtenerEstadoActualizacion.mockResolvedValue(estadoInactivo);
+    actualizarDatos.mockResolvedValue({});
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await screen.findByText("Sin actualizaciones en curso.");
+
+    const campoHorizonte = screen.getByLabelText("Horizonte en meses:");
+    await usuario.clear(campoHorizonte);
+    await usuario.type(campoHorizonte, "6{Enter}");
+
+    expect(actualizarDatos).toHaveBeenCalledWith(6);
+  });
+
+  it("al presionar Enter con un horizonte inválido, no ejecuta la actualización", async () => {
+    obtenerEstadoActualizacion.mockResolvedValue(estadoInactivo);
+    const usuario = userEvent.setup();
+
+    renderizar();
+    await screen.findByText("Sin actualizaciones en curso.");
+
+    const campoHorizonte = screen.getByLabelText("Horizonte en meses:");
+    await usuario.clear(campoHorizonte);
+    await usuario.type(campoHorizonte, "{Enter}");
+
+    expect(actualizarDatos).not.toHaveBeenCalled();
+  });
+
   it("deshabilita el botón de actualizar mientras el horizonte esté vacío", async () => {
     obtenerEstadoActualizacion.mockResolvedValue(estadoInactivo);
     const usuario = userEvent.setup();
