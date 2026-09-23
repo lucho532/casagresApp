@@ -29,6 +29,21 @@ const productos = [
   },
 ];
 
+function generarProductos(cantidad) {
+  return Array.from({ length: cantidad }, (_, indice) => {
+    const numero = String(indice + 1).padStart(3, "0");
+
+    return {
+      referencia: `REF${numero}`,
+      descripcion: `Producto ${numero}`,
+      marca: "Marca",
+      linea: "Linea",
+      grupo: "Grupo",
+      planta: "Planta",
+    };
+  });
+}
+
 async function esperarCarga() {
   return screen.findByText("Productos disponibles");
 }
@@ -156,5 +171,113 @@ describe("Productos", () => {
 
     const detalle = screen.getByText("Marca B").closest(".producto-detalle");
     expect(within(detalle).getByText("Codo PVC")).toBeInTheDocument();
+  });
+
+  describe("paginación", () => {
+    it("con pocos productos, muestra una sola página y deshabilita ambos botones", async () => {
+      obtenerProductos.mockResolvedValue({ productos });
+
+      render(<Productos />);
+      await esperarCarga();
+
+      expect(screen.getByText("Página 1 de 1")).toBeInTheDocument();
+      expect(screen.getByText("‹ Anterior")).toBeDisabled();
+      expect(screen.getByText("Siguiente ›")).toBeDisabled();
+    });
+
+    it("no muestra los controles de paginación cuando no hay resultados", async () => {
+      obtenerProductos.mockResolvedValue({ productos: [] });
+
+      render(<Productos />);
+      await esperarCarga();
+
+      expect(screen.queryByText(/Página \d+ de \d+/)).not.toBeInTheDocument();
+    });
+
+    it("muestra solo el tamaño de página elegido (20 por defecto) y el indicador correcto", async () => {
+      obtenerProductos.mockResolvedValue({ productos: generarProductos(45) });
+
+      render(<Productos />);
+      await esperarCarga();
+
+      const tabla = screen.getByRole("table");
+      expect(within(tabla).getAllByRole("row")).toHaveLength(21); // encabezado + 20 filas
+      expect(screen.getByText("Página 1 de 3")).toBeInTheDocument();
+      expect(within(tabla).getByText("Producto 001")).toBeInTheDocument();
+      expect(within(tabla).queryByText("Producto 021")).not.toBeInTheDocument();
+    });
+
+    it("al hacer clic en 'Siguiente', muestra la página siguiente y habilita 'Anterior'", async () => {
+      obtenerProductos.mockResolvedValue({ productos: generarProductos(45) });
+      const usuario = userEvent.setup();
+
+      render(<Productos />);
+      await esperarCarga();
+
+      const botonAnterior = screen.getByText("‹ Anterior");
+      expect(botonAnterior).toBeDisabled();
+
+      await usuario.click(screen.getByText("Siguiente ›"));
+
+      expect(screen.getByText("Página 2 de 3")).toBeInTheDocument();
+      expect(botonAnterior).not.toBeDisabled();
+
+      const tabla = screen.getByRole("table");
+      expect(within(tabla).getByText("Producto 021")).toBeInTheDocument();
+      expect(within(tabla).queryByText("Producto 001")).not.toBeInTheDocument();
+    });
+
+    it("deshabilita 'Siguiente' en la última página", async () => {
+      obtenerProductos.mockResolvedValue({ productos: generarProductos(45) });
+      const usuario = userEvent.setup();
+
+      render(<Productos />);
+      await esperarCarga();
+
+      await usuario.click(screen.getByText("Siguiente ›"));
+      await usuario.click(screen.getByText("Siguiente ›"));
+
+      expect(screen.getByText("Página 3 de 3")).toBeInTheDocument();
+      expect(screen.getByText("Siguiente ›")).toBeDisabled();
+
+      const tabla = screen.getByRole("table");
+      expect(within(tabla).getByText("Producto 045")).toBeInTheDocument();
+    });
+
+    it("al cambiar el tamaño de página, actualiza la cantidad de filas y vuelve a la página 1", async () => {
+      obtenerProductos.mockResolvedValue({ productos: generarProductos(45) });
+      const usuario = userEvent.setup();
+
+      render(<Productos />);
+      await esperarCarga();
+
+      await usuario.click(screen.getByText("Siguiente ›"));
+      expect(screen.getByText("Página 2 de 3")).toBeInTheDocument();
+
+      await usuario.selectOptions(screen.getByLabelText("Mostrar"), "50");
+
+      expect(screen.getByText("Página 1 de 1")).toBeInTheDocument();
+
+      const tabla = screen.getByRole("table");
+      expect(within(tabla).getAllByRole("row")).toHaveLength(46); // encabezado + 45 filas
+    });
+
+    it("al buscar, vuelve a la página 1", async () => {
+      obtenerProductos.mockResolvedValue({ productos: generarProductos(45) });
+      const usuario = userEvent.setup();
+
+      render(<Productos />);
+      await esperarCarga();
+
+      await usuario.click(screen.getByText("Siguiente ›"));
+      expect(screen.getByText("Página 2 de 3")).toBeInTheDocument();
+
+      await usuario.type(
+        screen.getByPlaceholderText("Buscar por referencia o nombre del producto..."),
+        "Producto 044",
+      );
+
+      expect(screen.getByText("Página 1 de 1")).toBeInTheDocument();
+    });
   });
 });
