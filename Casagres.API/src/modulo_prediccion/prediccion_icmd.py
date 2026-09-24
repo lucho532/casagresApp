@@ -495,12 +495,11 @@ def _calibrar_aci_inicial(
     meses: int,
     target: float,
     step_size: float,
-) -> tuple[SequentialACI, int, list[dict]]:
+) -> tuple[SequentialACI, int]:
     """Backtesting causal rolling one-step en los últimos meses observados."""
     aci = SequentialACI(target_miscoverage=target, step_size=step_size)
-    registros: list[dict] = []
     if len(serie) <= 1:
-        return aci, 0, registros
+        return aci, 0
 
     candidatos = list(serie.index[-min(int(meses), len(serie) - 1) :])
     usados = 0
@@ -509,7 +508,7 @@ def _calibrar_aci_inicial(
         if historial.empty:
             continue
         try:
-            pred, metodo = _prediccion_un_paso_historica(codigo, historial, fecha)
+            pred, _ = _prediccion_un_paso_historica(codigo, historial, fecha)
         except Exception as exc:
             print(f"[ACI][AVISO] {codigo} {fecha:%Y-%m}: calibración omitida ({exc}).")
             continue
@@ -519,17 +518,7 @@ def _calibrar_aci_inicial(
         lo, hi, _ = finalizar_intervalo(pred, aci.interval(pred))
         aci.update(real, pred, interval=(lo, hi))
         usados += 1
-        registros.append(
-            {
-                "mes": pd.Timestamp(fecha),
-                "codigo_producto": codigo,
-                "metodo": metodo,
-                "prediccion": float(pred),
-                "inferior": lo,
-                "superior": hi,
-            }
-        )
-    return aci, usados, registros
+    return aci, usados
 
 
 def _inicializar_estado_serie(
@@ -540,34 +529,32 @@ def _inicializar_estado_serie(
     meses_calibracion: int,
     target: float,
     step_size: float,
-) -> tuple[dict, list[dict]]:
-    aci, n, registros = _calibrar_aci_inicial(
+) -> dict:
+    aci, n = _calibrar_aci_inicial(
         codigo,
         serie,
         meses=meses_calibracion,
         target=target,
         step_size=step_size,
     )
-    estado_serie = {
+    return {
         "metodo": metodo,
         "aci": aci.state_dict(),
         "n_calibracion_inicial": int(n),
         "last_aci_observation": _fecha_iso(serie.index[-1]),
         "pending": None,
     }
-    return estado_serie, registros
 
 
 def _actualizar_estado_con_observaciones(
     codigo: str,
     serie: pd.Series,
     estado_serie: dict,
-) -> tuple[dict, list[dict]]:
+) -> dict:
     """Actualiza ACI únicamente con observaciones reales nuevas."""
     aci = SequentialACI.from_state_dict(estado_serie.get("aci", {}))
     ultima = pd.Timestamp(estado_serie.get("last_aci_observation", serie.index[0]))
     pendiente = estado_serie.get("pending")
-    registros: list[dict] = []
 
     for fecha in serie.index[serie.index > ultima]:
         real = float(serie.loc[fecha])
@@ -578,13 +565,12 @@ def _actualizar_estado_con_observaciones(
         if usar_pendiente:
             pred = float(pendiente["prediccion"])
             intervalo = (float(pendiente["inferior"]), float(pendiente["superior"]))
-            metodo = pendiente.get("metodo") or estado_serie.get("metodo", "")
             fuente = "prediccion_operacional"
             pendiente = None
         else:
             historial = serie.loc[serie.index < fecha]
             try:
-                pred, metodo = _prediccion_un_paso_historica(codigo, historial, fecha)
+                pred, _ = _prediccion_un_paso_historica(codigo, historial, fecha)
             except Exception as exc:
                 print(
                     f"[ACI][AVISO] {codigo} {fecha:%Y-%m}: actualización omitida ({exc})."
@@ -597,16 +583,6 @@ def _actualizar_estado_con_observaciones(
 
         aci.update(real, pred, interval=intervalo)
         ultima = fecha
-        registros.append(
-            {
-                "mes": pd.Timestamp(fecha),
-                "codigo_producto": codigo,
-                "metodo": metodo,
-                "prediccion": float(pred),
-                "inferior": float(intervalo[0]),
-                "superior": float(intervalo[1]),
-            }
-        )
         print(
             f"[ACI] {codigo} {fecha:%Y-%m}: actualizado ({fuente}); "
             f"alpha_t={aci.alpha_t:.4f}, scores={len(aci.scores)}."
@@ -615,7 +591,53 @@ def _actualizar_estado_con_observaciones(
     estado_serie["aci"] = aci.state_dict()
     estado_serie["last_aci_observation"] = _fecha_iso(ultima)
     estado_serie["pending"] = pendiente
-    return estado_serie, registros
+    return estado_serie
+
+
+def _backtest_causal_reciente(
+    codigo: str,
+    serie: pd.Series,
+    aci: SequentialACI,
+    *,
+    meses: int,
+) -> list[dict]:
+    """Backtest causal de solo lectura para poblar el histórico visible.
+
+    A diferencia de `_calibrar_aci_inicial` (que solo corre la primera vez
+    que se calibra una serie), esto se recalcula en cada corrida del
+    pipeline para los últimos `meses` meses observados, sin mutar `aci`
+    (usa el intervalo vigente según los scores ya acumulados). Así se
+    autocura si pronostico_historico.csv se pierde, y cubre series cuyo
+    estado ACI ya venía calibrado desde antes de existir esta salida.
+    """
+    registros: list[dict] = []
+    if len(serie) <= 1:
+        return registros
+
+    candidatos = list(serie.index[-min(int(meses), len(serie) - 1) :])
+    for fecha in candidatos:
+        historial = serie.loc[serie.index < fecha]
+        if historial.empty:
+            continue
+        try:
+            pred, metodo = _prediccion_un_paso_historica(codigo, historial, fecha)
+        except Exception as exc:
+            print(f"[HISTORICO][AVISO] {codigo} {fecha:%Y-%m}: omitido ({exc}).")
+            continue
+        if not np.isfinite(pred):
+            continue
+        lo, hi, _ = finalizar_intervalo(pred, aci.interval(float(pred)))
+        registros.append(
+            {
+                "mes": pd.Timestamp(fecha),
+                "codigo_producto": codigo,
+                "metodo": metodo,
+                "prediccion": float(pred),
+                "inferior": lo,
+                "superior": hi,
+            }
+        )
+    return registros
 
 
 def pronosticar_todas_las_series(
@@ -669,7 +691,7 @@ def pronosticar_todas_las_series(
         estado_serie = estado["series"].get(codigo)
 
         if estado_serie is None or estado_serie.get("metodo") != metodo:
-            estado_serie, registros_serie = _inicializar_estado_serie(
+            estado_serie = _inicializar_estado_serie(
                 codigo,
                 series[codigo],
                 metodo,
@@ -685,13 +707,17 @@ def pronosticar_todas_las_series(
         else:
             estado_serie["aci"]["target_miscoverage"] = float(aci_target)
             estado_serie["aci"]["step_size"] = float(aci_step_size)
-            estado_serie, registros_serie = _actualizar_estado_con_observaciones(
+            estado_serie = _actualizar_estado_con_observaciones(
                 codigo, series[codigo], estado_serie
             )
 
-        filas_historico.extend(registros_serie)
-
         aci = SequentialACI.from_state_dict(estado_serie["aci"])
+
+        filas_historico.extend(
+            _backtest_causal_reciente(
+                codigo, series[codigo], aci, meses=meses_calibracion
+            )
+        )
 
         if metodo == "KRR":
             pred = modelo.pronosticar_serie(codigo, series[codigo], horizonte)
