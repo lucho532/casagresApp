@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ComposedChart,
-  Area,
+  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -173,7 +172,8 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       datos.push({
         mes: item.mes,
         real: Number(item.cantidad || 0),
-        prediccion: null,
+        minimo: null,
+        maximo: null,
       });
     });
 
@@ -189,11 +189,8 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       datos.push({
         mes: item.mes,
         real: null,
-        prediccion: item.cantidad,
-        rango:
-          item.inferior != null && item.superior != null
-            ? [item.inferior, item.superior]
-            : null,
+        minimo: item.inferior,
+        maximo: item.superior,
       });
     });
 
@@ -201,7 +198,7 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
     datos.sort((a, b) => a.mes.localeCompare(b.mes));
 
     // -----------------------------------------
-    // CONECTAR ÚLTIMO REAL CON PREDICCIÓN
+    // CONECTAR ÚLTIMO REAL CON LA PRIMERA PREDICCIÓN
     // -----------------------------------------
 
     if (predicciones.length > 0 && historico.length > 0) {
@@ -216,11 +213,8 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
 
         datos[indiceUltimoReal] = {
           ...datos[indiceUltimoReal],
-          prediccion: Number(ultimoReal.cantidad || 0),
-          rango:
-            primeraPrediccion?.inferior != null && primeraPrediccion?.superior != null
-              ? [primeraPrediccion.inferior, primeraPrediccion.superior]
-              : null,
+          minimo: primeraPrediccion.inferior,
+          maximo: primeraPrediccion.superior,
         };
       }
     }
@@ -356,7 +350,7 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
         ) : (
           <div className="grafica-container">
             <ResponsiveContainer width="100%" height={420}>
-              <ComposedChart
+              <LineChart
                 data={datosGrafica}
                 margin={{
                   top: 10,
@@ -375,38 +369,14 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                 <YAxis />
 
                 <Tooltip
-                  formatter={(valor, nombre) => {
-                    if (Array.isArray(valor)) {
-                      return [
-                        `${Number(valor[0]).toLocaleString("es-CO")} - ${Number(
-                          valor[1],
-                        ).toLocaleString("es-CO")}`,
-                        nombre,
-                      ];
-                    }
-
-                    return [Number(valor).toLocaleString("es-CO"), nombre];
-                  }}
+                  formatter={(valor, nombre) => [
+                    Number(valor).toLocaleString("es-CO"),
+                    nombre,
+                  ]}
                   labelFormatter={(valor) => `Mes: ${valor}`}
                 />
 
                 <Legend />
-
-                {/* =================================
-                    RANGO ESTIMADO (MÍNIMO-MÁXIMO)
-                ================================== */}
-
-                <Area
-                  type="monotone"
-                  dataKey="rango"
-                  name="Rango estimado"
-                  stroke="none"
-                  fill="#2563eb"
-                  fillOpacity={0.15}
-                  connectNulls
-                  isAnimationActive={false}
-                  activeDot={false}
-                />
 
                 {/* =================================
                     VENTAS REALES
@@ -425,22 +395,39 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                 />
 
                 {/* =================================
-                    PREDICCIÓN
+                    MÍNIMO ESTIMADO
                 ================================== */}
 
                 <Line
                   type="monotone"
-                  dataKey="prediccion"
-                  name="Predicción"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  strokeDasharray="8 6"
+                  dataKey="minimo"
+                  name="Mínimo estimado"
+                  stroke="#c78228"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
                   dot={false}
                   activeDot={{
-                    r: 6,
+                    r: 5,
                   }}
                 />
-              </ComposedChart>
+
+                {/* =================================
+                    MÁXIMO ESTIMADO
+                ================================== */}
+
+                <Line
+                  type="monotone"
+                  dataKey="maximo"
+                  name="Máximo estimado"
+                  stroke="#66815d"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={false}
+                  activeDot={{
+                    r: 5,
+                  }}
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         )}
