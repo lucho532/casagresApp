@@ -33,13 +33,19 @@ function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <div className="logo-c">C</div>
+        <button
+          type="button"
+          className="sidebar-logo-boton"
+          onClick={() => cambiarPagina("inicio")}
+        >
+          <div className="logo-c">C</div>
 
-        <div>
-          <div className="logo-nombre">CASAGRES</div>
+          <div>
+            <div className="logo-nombre">CASAGRES</div>
 
-          <div className="logo-subtitulo">Analítica de ventas</div>
-        </div>
+            <div className="logo-subtitulo">Analítica de ventas</div>
+          </div>
+        </button>
 
         {/* Mismo botón que el del pie, pero solo visible en móvil (ver
             Sidebar.css): al lado contrario del logo, arriba a la derecha. */}

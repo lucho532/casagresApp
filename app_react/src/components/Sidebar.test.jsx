@@ -88,4 +88,17 @@ describe("Sidebar", () => {
 
     expect(screen.getByTestId("control-actualizacion-mock")).toBeInTheDocument();
   });
+
+  it("al hacer clic en el logo, llama a cambiarPagina con 'inicio'", async () => {
+    const cambiarPagina = vi.fn();
+    const usuario = userEvent.setup();
+
+    render(
+      <Sidebar {...propsBase} paginaActual="productos" cambiarPagina={cambiarPagina} />,
+    );
+
+    await usuario.click(screen.getByText("CASAGRES", { selector: ".logo-nombre" }));
+
+    expect(cambiarPagina).toHaveBeenCalledWith("inicio");
+  });
 });

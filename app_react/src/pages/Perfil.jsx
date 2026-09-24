@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { obtenerUrlCompleta, subirFotoPerfil } from "../services/api";
 import { obtenerIniciales } from "../utils/formato";
 import "../styles/Perfil.css";
@@ -12,6 +12,23 @@ function Perfil({ perfil, onFotoActualizada }) {
   const [errorAlCargarFoto, setErrorAlCargarFoto] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
   const [errorSubida, setErrorSubida] = useState("");
+  const [fotoAmpliada, setFotoAmpliada] = useState(false);
+
+  useEffect(() => {
+    if (!fotoAmpliada) {
+      return;
+    }
+
+    const cerrarConEscape = (e) => {
+      if (e.key === "Escape") {
+        setFotoAmpliada(false);
+      }
+    };
+
+    document.addEventListener("keydown", cerrarConEscape);
+
+    return () => document.removeEventListener("keydown", cerrarConEscape);
+  }, [fotoAmpliada]);
 
   const abrirSelectorDeArchivo = () => {
     if (!subiendo) {
@@ -76,7 +93,31 @@ function Perfil({ perfil, onFotoActualizada }) {
 
       <div className="perfil-tarjeta">
         <div className="perfil-avatar-seccion">
-          <div className="perfil-avatar">
+          <div
+            className={`perfil-avatar ${
+              fotoUrl && !errorAlCargarFoto ? "perfil-avatar-ampliable" : ""
+            }`}
+            onClick={() => {
+              if (fotoUrl && !errorAlCargarFoto) {
+                setFotoAmpliada(true);
+              }
+            }}
+            role={fotoUrl && !errorAlCargarFoto ? "button" : undefined}
+            tabIndex={fotoUrl && !errorAlCargarFoto ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (
+                fotoUrl &&
+                !errorAlCargarFoto &&
+                (e.key === "Enter" || e.key === " ")
+              ) {
+                e.preventDefault();
+                setFotoAmpliada(true);
+              }
+            }}
+            aria-label={
+              fotoUrl && !errorAlCargarFoto ? "Ver foto de perfil en grande" : undefined
+            }
+          >
             {fotoUrl && !errorAlCargarFoto ? (
               <img
                 src={obtenerUrlCompleta(fotoUrl)}
@@ -134,6 +175,29 @@ function Perfil({ perfil, onFotoActualizada }) {
           </div>
         </div>
       </div>
+
+      {fotoAmpliada && fotoUrl && (
+        <div
+          className="perfil-foto-overlay"
+          onClick={() => setFotoAmpliada(false)}
+        >
+          <button
+            type="button"
+            className="perfil-foto-cerrar"
+            onClick={() => setFotoAmpliada(false)}
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+
+          <img
+            src={obtenerUrlCompleta(fotoUrl)}
+            alt="Foto de perfil ampliada"
+            className="perfil-foto-ampliada"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      )}
     </div>
   );
 }

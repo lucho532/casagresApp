@@ -69,6 +69,71 @@ describe("Perfil", () => {
     });
   });
 
+  describe("ampliar la foto", () => {
+    const perfilConFoto = { ...perfilBase, fotoUrl: "/api/auth/foto-perfil/1" };
+
+    it("al hacer clic en la foto, la muestra ampliada", async () => {
+      const usuario = userEvent.setup();
+      render(<Perfil perfil={perfilConFoto} />);
+
+      await usuario.click(screen.getByAltText("Foto de perfil"));
+
+      expect(screen.getByAltText("Foto de perfil ampliada")).toHaveAttribute(
+        "src",
+        "https://api.ejemplo.com/api/auth/foto-perfil/1",
+      );
+    });
+
+    it("con Enter en el avatar, también la amplía", async () => {
+      const usuario = userEvent.setup();
+      render(<Perfil perfil={perfilConFoto} />);
+
+      screen.getByAltText("Foto de perfil").closest('[role="button"]').focus();
+      await usuario.keyboard("{Enter}");
+
+      expect(screen.getByAltText("Foto de perfil ampliada")).toBeInTheDocument();
+    });
+
+    it("al hacer clic en las iniciales (sin foto), no amplía nada", async () => {
+      const usuario = userEvent.setup();
+      render(<Perfil perfil={perfilBase} />);
+
+      await usuario.click(screen.getByText("JP"));
+
+      expect(screen.queryByAltText("Foto de perfil ampliada")).not.toBeInTheDocument();
+    });
+
+    it("al hacer clic en el fondo, cierra la vista ampliada", async () => {
+      const usuario = userEvent.setup();
+      render(<Perfil perfil={perfilConFoto} />);
+
+      await usuario.click(screen.getByAltText("Foto de perfil"));
+      await usuario.click(screen.getByAltText("Foto de perfil ampliada"));
+
+      expect(screen.queryByAltText("Foto de perfil ampliada")).not.toBeInTheDocument();
+    });
+
+    it("al hacer clic en el botón de cerrar, cierra la vista ampliada", async () => {
+      const usuario = userEvent.setup();
+      render(<Perfil perfil={perfilConFoto} />);
+
+      await usuario.click(screen.getByAltText("Foto de perfil"));
+      await usuario.click(screen.getByRole("button", { name: "Cerrar" }));
+
+      expect(screen.queryByAltText("Foto de perfil ampliada")).not.toBeInTheDocument();
+    });
+
+    it("con Escape, cierra la vista ampliada", async () => {
+      const usuario = userEvent.setup();
+      render(<Perfil perfil={perfilConFoto} />);
+
+      await usuario.click(screen.getByAltText("Foto de perfil"));
+      await usuario.keyboard("{Escape}");
+
+      expect(screen.queryByAltText("Foto de perfil ampliada")).not.toBeInTheDocument();
+    });
+  });
+
   describe("subir foto de perfil", () => {
     it("al elegir una imagen válida, la sube y avisa al padre con la nueva URL", async () => {
       const onFotoActualizada = vi.fn();
