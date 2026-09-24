@@ -1,8 +1,16 @@
+import { useState } from "react";
 import { obtenerNombre, obtenerRol } from "../utils/auth";
+import { obtenerIniciales } from "../utils/formato";
+import { obtenerUrlCompleta } from "../services/api";
 import "../styles/Header.css";
-function Header({ paginaActual, ultimaActualizacion }) {
+
+function Header({ paginaActual, ultimaActualizacion, fotoUrl, onAbrirPerfil }) {
   const nombreUsuario = obtenerNombre();
   const rolUsuario = obtenerRol();
+
+  // Si la URL de la foto falla al cargar, se cae de vuelta a las iniciales
+  // en vez de mostrar un ícono de imagen rota.
+  const [errorAlCargarFoto, setErrorAlCargarFoto] = useState(false);
 
   const titulos = {
     inicio: "Inicio",
@@ -12,6 +20,7 @@ function Header({ paginaActual, ultimaActualizacion }) {
     powerbi: "Power BI",
     productos: "Productos",
     admin: "Administración",
+    perfil: "Mi perfil",
   };
 
   const formatearFecha = (fecha) => {
@@ -45,12 +54,31 @@ function Header({ paginaActual, ultimaActualizacion }) {
       </div>
 
       <div className="header-usuario">
-        <div className="header-usuario-icono">👤</div>
+        <div className="header-usuario-icono">
+          {fotoUrl && !errorAlCargarFoto ? (
+            <img
+              src={obtenerUrlCompleta(fotoUrl)}
+              alt="Foto de perfil"
+              className="header-usuario-foto"
+              referrerPolicy="no-referrer"
+              onError={() => setErrorAlCargarFoto(true)}
+            />
+          ) : (
+            <span className="header-usuario-iniciales">
+              {obtenerIniciales(nombreUsuario) || "👤"}
+            </span>
+          )}
+        </div>
 
         <div className="header-usuario-info">
-          <span className="header-usuario-nombre">
+          <button
+            type="button"
+            className="header-usuario-nombre header-usuario-nombre-boton"
+            onClick={onAbrirPerfil}
+            title="Editar mi perfil"
+          >
             {nombreUsuario || "Usuario"}
-          </span>
+          </button>
 
           <span className="header-usuario-rol">
             {rolUsuario === "admin" ? "Administrador" : "Usuario"}

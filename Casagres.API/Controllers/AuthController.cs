@@ -15,17 +15,20 @@ public class AuthController : ControllerBase
     private readonly IPasswordResetService _passwordResetService;
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IFotoPerfilService _fotoPerfilService;
 
     public AuthController(
         IAuthService authService,
         IPasswordResetService passwordResetService,
         IEmailVerificationService emailVerificationService,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IFotoPerfilService fotoPerfilService)
     {
         _authService = authService;
         _passwordResetService = passwordResetService;
         _emailVerificationService = emailVerificationService;
         _scopeFactory = scopeFactory;
+        _fotoPerfilService = fotoPerfilService;
     }
 
 
@@ -64,8 +67,60 @@ public class AuthController : ControllerBase
             usuario.Nombre,
             usuario.Email,
             usuario.Rol,
-            usuario.Activo
+            usuario.Activo,
+            usuario.FotoUrl
         });
+    }
+
+    // ============================================================
+    // FOTO DE PERFIL
+    // ============================================================
+
+    [HttpPost("foto-perfil")]
+    public async Task<IActionResult> SubirFotoPerfil(IFormFile? foto)
+    {
+        var idClaim = User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!long.TryParse(idClaim, out var id))
+        {
+            return Unauthorized();
+        }
+
+        if (foto == null || foto.Length == 0)
+        {
+            return BadRequest(new { mensaje = "Debes seleccionar una imagen." });
+        }
+
+        try
+        {
+            await using var contenido = foto.OpenReadStream();
+
+            var fotoUrl = await _fotoPerfilService.GuardarFotoAsync(
+                id, contenido, foto.Length, foto.ContentType);
+
+            return Ok(new { fotoUrl });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpGet("foto-perfil/{id:long}")]
+    public IActionResult ObtenerFotoPerfil(long id)
+    {
+        var resultado = _fotoPerfilService.ObtenerFoto(id);
+
+        if (resultado == null)
+        {
+            return NotFound();
+        }
+
+        var (contenido, contentType) = resultado.Value;
+
+        return File(contenido, contentType);
     }
 
     [AllowAnonymous]

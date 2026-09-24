@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useDashboard } from "../hooks/useDashboard";
+import { useCatalogoProductos } from "../hooks/useCatalogoProductos";
 import { formatearNumero, formatearMes } from "../utils/formato";
 import EstadoCargando from "../components/EstadoCargando";
 import MensajeError from "../components/MensajeError";
@@ -14,6 +15,9 @@ function Inicio({
   const { dashboard, cargando, error } = useDashboard(
     "No fue posible cargar el resumen de la plataforma.",
   );
+
+  const { obtenerNombreProducto, obtenerNombreConCodigo } =
+    useCatalogoProductos();
 
   // =========================================
   // MES SELECCIONADO
@@ -178,7 +182,9 @@ function Inicio({
             </strong>
 
             <small>
-              {productoPrincipal ? productoPrincipal.referencia : "Sin datos"}
+              {productoPrincipal
+                ? obtenerNombreConCodigo(productoPrincipal.referencia)
+                : "Sin datos"}
             </small>
           </div>
         </div>
@@ -215,7 +221,7 @@ function Inicio({
               <h3>Productos con mayor demanda</h3>
 
               <p>
-                Referencias con mayor demanda proyectada para el próximo
+                Productos con mayor demanda proyectada para el próximo
                 periodo.
               </p>
             </div>
@@ -229,9 +235,11 @@ function Inicio({
                 <div className="ranking-posicion">{indice + 1}</div>
 
                 <div className="ranking-producto">
-                  <strong>{producto.referencia}</strong>
+                  <strong>{obtenerNombreProducto(producto.referencia)}</strong>
 
-                  <span>{producto.metodo || "Sin método"}</span>
+                  <span>
+                    {producto.referencia} · {producto.metodo || "Sin método"}
+                  </span>
                 </div>
 
                 <div className="ranking-demanda">

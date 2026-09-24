@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import SelectorProducto from "./SelectorProducto";
@@ -74,7 +74,7 @@ describe("SelectorProducto", () => {
     );
 
     expect(
-      screen.queryByPlaceholderText("Buscar referencia..."),
+      screen.queryByPlaceholderText("Buscar producto..."),
     ).not.toBeInTheDocument();
   });
 
@@ -89,16 +89,16 @@ describe("SelectorProducto", () => {
       />,
     );
 
-    const boton = screen.getByTitle("Buscar referencia");
+    const boton = screen.getByTitle("Buscar producto");
 
     await usuario.click(boton);
     expect(
-      screen.getByPlaceholderText("Buscar referencia..."),
+      screen.getByPlaceholderText("Buscar producto..."),
     ).toBeInTheDocument();
 
     await usuario.click(boton);
     expect(
-      screen.queryByPlaceholderText("Buscar referencia..."),
+      screen.queryByPlaceholderText("Buscar producto..."),
     ).not.toBeInTheDocument();
   });
 
@@ -113,8 +113,8 @@ describe("SelectorProducto", () => {
       />,
     );
 
-    await usuario.click(screen.getByTitle("Buscar referencia"));
-    await usuario.type(screen.getByPlaceholderText("Buscar referencia..."), "ref");
+    await usuario.click(screen.getByTitle("Buscar producto"));
+    await usuario.type(screen.getByPlaceholderText("Buscar producto..."), "ref");
 
     // "REF1" y "REF2" contienen "ref" (sin distinguir mayúsculas); "OTRA3" no.
     expect(screen.getAllByRole("option")).toHaveLength(2);
@@ -131,8 +131,8 @@ describe("SelectorProducto", () => {
       />,
     );
 
-    await usuario.click(screen.getByTitle("Buscar referencia"));
-    const input = screen.getByPlaceholderText("Buscar referencia...");
+    await usuario.click(screen.getByTitle("Buscar producto"));
+    const input = screen.getByPlaceholderText("Buscar producto...");
 
     await usuario.type(input, "ref");
     expect(screen.getByText("2 resultados")).toBeInTheDocument();
@@ -154,15 +154,15 @@ describe("SelectorProducto", () => {
       />,
     );
 
-    await usuario.click(screen.getByTitle("Buscar referencia"));
+    await usuario.click(screen.getByTitle("Buscar producto"));
     await usuario.type(
-      screen.getByPlaceholderText("Buscar referencia..."),
+      screen.getByPlaceholderText("Buscar producto..."),
       "REF2{Enter}",
     );
 
     expect(onSeleccionar).toHaveBeenCalledWith("REF2");
     expect(
-      screen.queryByPlaceholderText("Buscar referencia..."),
+      screen.queryByPlaceholderText("Buscar producto..."),
     ).not.toBeInTheDocument();
   });
 
@@ -178,12 +178,102 @@ describe("SelectorProducto", () => {
       />,
     );
 
-    await usuario.click(screen.getByTitle("Buscar referencia"));
+    await usuario.click(screen.getByTitle("Buscar producto"));
     await usuario.type(
-      screen.getByPlaceholderText("Buscar referencia..."),
+      screen.getByPlaceholderText("Buscar producto..."),
       "no-existe{Enter}",
     );
 
     expect(onSeleccionar).not.toHaveBeenCalled();
+  });
+
+  it("muestra una lista de coincidencias en vivo a medida que se escribe", async () => {
+    const usuario = userEvent.setup();
+
+    render(
+      <SelectorProducto
+        productos={productos}
+        valorSeleccionado="REF1"
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    await usuario.click(screen.getByTitle("Buscar producto"));
+    await usuario.type(screen.getByPlaceholderText("Buscar producto..."), "ref");
+
+    const lista = screen.getByRole("list");
+    expect(within(lista).getAllByRole("button")).toHaveLength(2);
+    expect(within(lista).getByRole("button", { name: "REF1" })).toBeInTheDocument();
+    expect(within(lista).getByRole("button", { name: "REF2" })).toBeInTheDocument();
+
+    await usuario.type(screen.getByPlaceholderText("Buscar producto..."), "1");
+
+    expect(within(screen.getByRole("list")).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("al hacer clic en una coincidencia de la lista, la selecciona y cierra la búsqueda", async () => {
+    const onSeleccionar = vi.fn();
+    const usuario = userEvent.setup();
+
+    render(
+      <SelectorProducto
+        productos={productos}
+        valorSeleccionado="REF1"
+        onSeleccionar={onSeleccionar}
+      />,
+    );
+
+    await usuario.click(screen.getByTitle("Buscar producto"));
+    await usuario.type(screen.getByPlaceholderText("Buscar producto..."), "ref");
+    await usuario.click(screen.getByRole("button", { name: "REF2" }));
+
+    expect(onSeleccionar).toHaveBeenCalledWith("REF2");
+    expect(
+      screen.queryByPlaceholderText("Buscar producto..."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra 'Sin coincidencias' cuando la búsqueda no encuentra resultados", async () => {
+    const usuario = userEvent.setup();
+
+    render(
+      <SelectorProducto
+        productos={productos}
+        valorSeleccionado="REF1"
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    await usuario.click(screen.getByTitle("Buscar producto"));
+    await usuario.type(
+      screen.getByPlaceholderText("Buscar producto..."),
+      "no-existe",
+    );
+
+    expect(screen.getByText("Sin coincidencias")).toBeInTheDocument();
+  });
+
+  it("usa la etiqueta personalizada para mostrar y buscar coincidencias", async () => {
+    const usuario = userEvent.setup();
+    const productosConNombre = [
+      { referencia: "REF1", nombre: "Teja de barro" },
+      { referencia: "REF2", nombre: "Ladrillo hueco" },
+    ];
+
+    render(
+      <SelectorProducto
+        productos={productosConNombre}
+        valorSeleccionado="REF1"
+        onSeleccionar={vi.fn()}
+        obtenerEtiquetaProducto={(producto) => producto.nombre}
+      />,
+    );
+
+    await usuario.click(screen.getByTitle("Buscar producto"));
+    await usuario.type(screen.getByPlaceholderText("Buscar producto..."), "ladrillo");
+
+    const lista = screen.getByRole("list");
+    expect(within(lista).getByRole("button", { name: "Ladrillo hueco" })).toBeInTheDocument();
+    expect(within(lista).queryByRole("button", { name: "Teja de barro" })).not.toBeInTheDocument();
   });
 });

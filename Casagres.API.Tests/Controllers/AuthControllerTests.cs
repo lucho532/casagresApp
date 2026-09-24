@@ -15,6 +15,7 @@ public class AuthControllerTests
     private readonly Mock<IAuthService> _authService = new();
     private readonly Mock<IPasswordResetService> _passwordResetService = new();
     private readonly Mock<IEmailVerificationService> _emailVerificationService = new();
+    private readonly Mock<IFotoPerfilService> _fotoPerfilService = new();
 
     // El controlador resuelve IPasswordResetService/IEmailVerificationService
     // desde un scope nuevo para las tareas en segundo plano (ver
@@ -35,7 +36,8 @@ public class AuthControllerTests
             _authService.Object,
             _passwordResetService.Object,
             _emailVerificationService.Object,
-            CrearFabricaDeScopes());
+            CrearFabricaDeScopes(),
+            _fotoPerfilService.Object);
 
     private AuthController CrearControllerAutenticado(long usuarioId)
     {
@@ -463,5 +465,103 @@ public class AuthControllerTests
         Assert.IsType<BadRequestObjectResult>(resultado);
         _emailVerificationService.Verify(
             s => s.ReenviarSiNoVerificadoAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    // ============================================================
+    // SubirFotoPerfil
+    // ============================================================
+
+    private static IFormFile CrearArchivoDePrueba(
+        string contentType = "image/jpeg", int tamanoBytes = 10)
+    {
+        var stream = new MemoryStream(new byte[tamanoBytes]);
+
+        return new FormFile(stream, 0, stream.Length, "foto", "foto.jpg")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType,
+        };
+    }
+
+    [Fact]
+    public async Task SubirFotoPerfil_ConImagenValida_DevuelveOkConLaUrl()
+    {
+        _fotoPerfilService
+            .Setup(s => s.GuardarFotoAsync(1, It.IsAny<Stream>(), It.IsAny<long>(), "image/jpeg"))
+            .ReturnsAsync("/api/auth/foto-perfil/1?v=123");
+
+        var resultado = Assert.IsType<OkObjectResult>(
+            await CrearControllerAutenticado(1).SubirFotoPerfil(CrearArchivoDePrueba()));
+
+        Assert.NotNull(resultado.Value);
+    }
+
+    [Fact]
+    public async Task SubirFotoPerfil_SinArchivo_Devuelve400SinLlamarAlServicio()
+    {
+        var resultado = await CrearControllerAutenticado(1).SubirFotoPerfil(null);
+
+        Assert.IsType<BadRequestObjectResult>(resultado);
+        _fotoPerfilService.Verify(
+            s => s.GuardarFotoAsync(
+                It.IsAny<long>(), It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SubirFotoPerfil_SinClaimDeIdentificador_Devuelve401()
+    {
+        var controller = CrearController();
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity())
+            }
+        };
+
+        var resultado = await controller.SubirFotoPerfil(CrearArchivoDePrueba());
+
+        Assert.IsType<UnauthorizedResult>(resultado);
+    }
+
+    [Fact]
+    public async Task SubirFotoPerfil_CuandoElServicioRechazaElFormato_Devuelve400ConElMensaje()
+    {
+        _fotoPerfilService
+            .Setup(s => s.GuardarFotoAsync(
+                It.IsAny<long>(), It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<string>()))
+            .ThrowsAsync(new ArgumentException("Formato de imagen no soportado. Usa JPG, PNG o WEBP."));
+
+        var resultado = Assert.IsType<BadRequestObjectResult>(
+            await CrearControllerAutenticado(1).SubirFotoPerfil(CrearArchivoDePrueba("image/gif")));
+
+        Assert.NotNull(resultado.Value);
+    }
+
+    // ============================================================
+    // ObtenerFotoPerfil
+    // ============================================================
+
+    [Fact]
+    public void ObtenerFotoPerfil_ConFotoExistente_DevuelveElArchivo()
+    {
+        using var stream = new MemoryStream();
+        _fotoPerfilService
+            .Setup(s => s.ObtenerFoto(1))
+            .Returns((stream, "image/png"));
+
+        var resultado = Assert.IsType<FileStreamResult>(CrearController().ObtenerFotoPerfil(1));
+
+        Assert.Equal("image/png", resultado.ContentType);
+    }
+
+    [Fact]
+    public void ObtenerFotoPerfil_SinFoto_Devuelve404()
+    {
+        _fotoPerfilService.Setup(s => s.ObtenerFoto(1)).Returns((ValueTuple<Stream, string>?)null);
+
+        Assert.IsType<NotFoundResult>(CrearController().ObtenerFotoPerfil(1));
     }
 }

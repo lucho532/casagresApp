@@ -2,12 +2,17 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Tendencias from "./Tendencias";
-import { obtenerDashboard, obtenerHistorico } from "../services/api";
+import { obtenerDashboard, obtenerHistorico, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
   obtenerHistorico: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -71,7 +76,7 @@ describe("Tendencias", () => {
 
     expect(obtenerHistorico).toHaveBeenCalledWith("REF1");
     expect(await screen.findByText("100")).toBeInTheDocument();
-    expect(valorInfo("Referencia")).toBe("REF1");
+    expect(valorInfo("Producto seleccionado")).toBe("REF1");
   });
 
   it("selecciona por defecto el producto de mayor demanda aunque no sea el primero de la lista", async () => {
@@ -94,7 +99,7 @@ describe("Tendencias", () => {
 
     expect(obtenerHistorico).toHaveBeenCalledWith("REF2");
     await screen.findByText("100");
-    expect(valorInfo("Referencia")).toBe("REF2");
+    expect(valorInfo("Producto seleccionado")).toBe("REF2");
   });
 
   it("muestra 'Cargando histórico...' mientras se obtiene el histórico del producto", async () => {
@@ -169,8 +174,29 @@ describe("Tendencias", () => {
 
     expect(obtenerHistorico).toHaveBeenCalledWith("REF2");
     await screen.findByRole("row", { name: /2024-12-01/ });
-    expect(valorInfo("Referencia")).toBe("REF2");
+    expect(valorInfo("Producto seleccionado")).toBe("REF2");
     expect(valorInfo("Total vendido")).toBe("50");
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerHistorico.mockResolvedValue(historicoRef1);
+    obtenerProductos.mockResolvedValue({
+      productos: [{ referencia: "REF1", descripcion: "Teja de barro" }],
+    });
+
+    render(<Tendencias mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+    await screen.findByText("100");
+
+    expect(valorInfo("Producto seleccionado")).toBe("Teja de barro");
+    expect(screen.getByRole("option", { name: "Teja de barro" })).toBeInTheDocument();
+
+    // El código del producto se sigue mostrando junto al nombre.
+    const contenedor = screen
+      .getByText("Producto seleccionado")
+      .closest(".info-producto");
+    expect(contenedor).toHaveTextContent("REF1");
   });
 
   it("no muestra el panel de información del producto cuando no hay productos", async () => {
@@ -181,8 +207,35 @@ describe("Tendencias", () => {
     render(<Tendencias mesSeleccionado="2025-01-01" />);
     await esperarCarga();
 
-    expect(screen.queryByText("Referencia")).not.toBeInTheDocument();
+    expect(screen.queryByText("Producto seleccionado")).not.toBeInTheDocument();
     expect(obtenerHistorico).not.toHaveBeenCalled();
+  });
+
+  it("mesesHistoricos no afecta el producto de mayor demanda ni el horizonte por defecto", async () => {
+    // dashboard.meses es lo único que usa el resto de la app (App.jsx) para
+    // fijar el horizonte por defecto. mesesHistoricos (el backtest de
+    // meses ya pasados, usado solo para el mínimo/máximo de la gráfica) no
+    // debe filtrarse en esa selección aunque traiga un pronóstico mayor.
+    obtenerProductos.mockResolvedValue({ productos: [] });
+    obtenerDashboard.mockResolvedValue({
+      ...dashboard,
+      mesesHistoricos: [
+        {
+          mes: "2024-01-01",
+          productos: [
+            { referencia: "REF2", pronostico: 999, inferior: 900, superior: 1000 },
+          ],
+        },
+      ],
+    });
+    obtenerHistorico.mockResolvedValue(historicoRef1);
+
+    render(<Tendencias mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+
+    expect(obtenerHistorico).toHaveBeenCalledWith("REF1");
+    await screen.findByText("100");
+    expect(valorInfo("Producto seleccionado")).toBe("REF1");
   });
 
   it("con mesesDisponibles, la tarjeta de periodo permite cambiar el mes seleccionado", async () => {

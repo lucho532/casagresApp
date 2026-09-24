@@ -2,11 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DemandaFutura from "./DemandaFutura";
-import { obtenerDashboard } from "../services/api";
+import { obtenerDashboard, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -75,7 +80,9 @@ describe("DemandaFutura", () => {
     await esperarCarga();
 
     const principal = document.querySelector(".tarjeta-demanda-principal");
-    expect(within(principal).getByText("REF1")).toBeInTheDocument();
+    expect(
+      within(principal).getByRole("heading", { name: "REF1" }),
+    ).toBeInTheDocument();
   });
 
   it("excluye del selector los productos con pronóstico cero", async () => {
@@ -149,7 +156,9 @@ describe("DemandaFutura", () => {
     await usuario.selectOptions(screen.getByRole("combobox"), "REF2");
 
     const principal = document.querySelector(".tarjeta-demanda-principal");
-    expect(within(principal).getByText("REF2")).toBeInTheDocument();
+    expect(
+      within(principal).getByRole("heading", { name: "REF2" }),
+    ).toBeInTheDocument();
     expect(valorCard("Demanda estimada")).toBe("300");
   });
 
@@ -163,6 +172,23 @@ describe("DemandaFutura", () => {
     expect(within(modeloInfo).getByText("KRR")).toBeInTheDocument();
     expect(within(modeloInfo).getByText("90%")).toBeInTheDocument();
     expect(within(modeloInfo).getByText("Procesado")).toBeInTheDocument();
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerProductos.mockResolvedValue({
+      productos: [{ referencia: "REF1", descripcion: "Teja de barro" }],
+    });
+
+    render(<DemandaFutura mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+
+    const principal = document.querySelector(".tarjeta-demanda-principal");
+    expect(within(principal).getByText("Teja de barro")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Teja de barro" })).toBeInTheDocument();
+
+    // El código del producto se sigue mostrando junto al nombre.
+    expect(within(principal).getByText("REF1")).toBeInTheDocument();
   });
 
   it("muestra un estado vacío cuando no hay pronósticos disponibles", async () => {

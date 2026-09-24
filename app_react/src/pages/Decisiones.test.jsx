@@ -2,11 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Decisiones from "./Decisiones";
-import { obtenerDashboard } from "../services/api";
+import { obtenerDashboard, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -82,7 +87,9 @@ describe("Decisiones", () => {
     await esperarCarga();
 
     const recomendacion = document.querySelector(".decision-recomendacion");
-    expect(within(recomendacion).getByText("REF1")).toBeInTheDocument();
+    expect(
+      within(recomendacion).getByRole("heading", { name: "REF1" }),
+    ).toBeInTheDocument();
     expect(within(recomendacion).getByText("500")).toBeInTheDocument();
   });
 
@@ -95,7 +102,12 @@ describe("Decisiones", () => {
     const filas = screen.getAllByRole("row").slice(1); // sin el encabezado
     expect(filas).toHaveLength(4); // REF5 (pronóstico 0) queda excluida
 
-    const referencias = filas.map((fila) => within(fila).getByRole("cell", { name: /REF\d/ }).textContent);
+    const referencias = filas.map(
+      (fila) =>
+        within(fila)
+          .getByRole("cell", { name: /REF\d/ })
+          .querySelector("strong").textContent,
+    );
     expect(referencias).toEqual(["REF1", "REF2", "REF3", "REF4"]);
 
     // Las primeras tres posiciones son "Alta", la cuarta es "Media".
@@ -110,7 +122,7 @@ describe("Decisiones", () => {
     render(<Decisiones mesSeleccionado="2025-01-01" />);
     await esperarCarga();
 
-    const filaRef4 = screen.getByText("REF4").closest("tr");
+    const filaRef4 = screen.getAllByText("REF4")[0].closest("tr");
     expect(within(filaRef4).getByText("N/D")).toBeInTheDocument();
   });
 
@@ -120,7 +132,7 @@ describe("Decisiones", () => {
     render(<Decisiones mesSeleccionado="2025-01-01" />);
     await esperarCarga();
 
-    const filaRef2 = screen.getByText("REF2").closest("tr");
+    const filaRef2 = screen.getAllByText("REF2")[0].closest("tr");
     expect(within(filaRef2).getByText("—")).toBeInTheDocument();
   });
 
@@ -131,8 +143,27 @@ describe("Decisiones", () => {
     await esperarCarga();
 
     const tabla = screen.getByRole("table");
-    const filaRef1 = within(tabla).getByText("REF1").closest("tr");
+    const filaRef1 = within(tabla).getAllByText("REF1")[0].closest("tr");
     expect(within(filaRef1).getByText("400 — 600")).toBeInTheDocument();
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerProductos.mockResolvedValue({
+      productos: [{ referencia: "REF1", descripcion: "Teja de barro" }],
+    });
+
+    render(<Decisiones mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+
+    const recomendacion = document.querySelector(".decision-recomendacion");
+    expect(within(recomendacion).getByText("Teja de barro")).toBeInTheDocument();
+
+    const tabla = screen.getByRole("table");
+    expect(within(tabla).getByText("Teja de barro")).toBeInTheDocument();
+    // El código sigue mostrándose junto al nombre, como una referencia
+    // secundaria (no como el texto principal).
+    expect(within(tabla).getByText("REF1")).toBeInTheDocument();
   });
 
   it("muestra un estado vacío cuando el mes no tiene productos", async () => {

@@ -13,6 +13,7 @@ import Decisiones from "./pages/Decisiones";
 import PowerBI from "./pages/PowerBI";
 import Productos from "./pages/Productos";
 import Administracion from "./pages/Administracion";
+import Perfil from "./pages/Perfil";
 import EstadoCargando from "./components/EstadoCargando";
 import { obtenerDashboard, obtenerPerfil } from "./services/api";
 import { obtenerRol } from "./utils/auth";
@@ -123,6 +124,10 @@ function App() {
     }
   }, [autenticado, perfil?.rol]);
 
+  const actualizarFotoPerfil = (fotoUrl) => {
+    setPerfil((actual) => ({ ...actual, fotoUrl }));
+  };
+
   const cerrarSesion = () => {
     sessionStorage.removeItem("token");
     setAutenticado(false);
@@ -183,6 +188,11 @@ function App() {
       case "admin":
         return <Administracion />;
 
+      case "perfil":
+        return (
+          <Perfil perfil={perfil} onFotoActualizada={actualizarFotoPerfil} />
+        );
+
       default:
         return <Inicio cambiarPagina={setPaginaActual} />;
     }
@@ -221,6 +231,8 @@ function App() {
         <Header
           paginaActual={paginaActual}
           ultimaActualizacion={ultimaActualizacion}
+          fotoUrl={perfil?.fotoUrl}
+          onAbrirPerfil={() => setPaginaActual("perfil")}
         />
 
         <main className="contenido">{renderizarPagina()}</main>

@@ -40,7 +40,7 @@
 
 .control-actualizacion-fila {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 7px;
 }
 
@@ -50,6 +50,18 @@
 
 .selector-horizonte {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.etiqueta-horizonte {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .selector-horizonte input {

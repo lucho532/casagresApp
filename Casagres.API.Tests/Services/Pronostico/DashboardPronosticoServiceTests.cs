@@ -174,4 +174,63 @@ public class DashboardPronosticoServiceTests : IDisposable
         Assert.Equal(60, productoEnero.Inferior);
         Assert.Equal(70, productoFebrero.Inferior);
     }
+
+    [Fact]
+    public void Leer_SinPronosticoHistoricoCsv_MesesHistoricosQuedaVacio()
+    {
+        EscribirTresArchivosMinimos();
+
+        var resultado = _servicio.Leer();
+
+        Assert.Single(resultado.Meses);
+        Assert.Empty(resultado.MesesHistoricos);
+    }
+
+    [Fact]
+    public void Leer_ConPronosticoHistoricoCsv_LoExponeSeparadoDeLosMesesFuturos()
+    {
+        // El histórico va en su propio campo, NO mezclado con Meses: el
+        // resto de la app (selector de horizonte en Inicio/Demanda futura/
+        // Decisiones/Tendencias) asume que Meses solo trae pronóstico a
+        // futuro y toma su primer elemento como el horizonte por defecto.
+        EscribirTresArchivosMinimos();
+        _carpeta.EscribirSalida(
+            "pronostico_historico.csv",
+            "mes,codigo_producto,metodo,prediccion,inferior,superior",
+            "2024-11-01,REF1,KRR,70,60,80",
+            "2024-12-01,REF1,KRR,75,65,85");
+
+        var resultado = _servicio.Leer();
+
+        Assert.Equal(new[] { "2025-01-01" }, resultado.Meses.Select(m => m.Mes));
+        Assert.Equal(
+            new[] { "2024-11-01", "2024-12-01" },
+            resultado.MesesHistoricos.Select(m => m.Mes));
+
+        var productoNoviembre = resultado.MesesHistoricos
+            .Single(m => m.Mes == "2024-11-01").Productos.Single();
+        Assert.Equal("REF1", productoNoviembre.Referencia);
+        Assert.Equal(70, productoNoviembre.Pronostico);
+        Assert.Equal("KRR", productoNoviembre.Metodo);
+        Assert.Equal(60, productoNoviembre.Inferior);
+        Assert.Equal(80, productoNoviembre.Superior);
+    }
+
+    [Fact]
+    public void Leer_ConVariosProductosEnElMismoMesHistorico_LosAgrupaEnUnSoloMes()
+    {
+        EscribirTresArchivosMinimos();
+        _carpeta.EscribirSalida(
+            "pronostico_historico.csv",
+            "mes,codigo_producto,metodo,prediccion,inferior,superior",
+            "2024-11-01,REF1,KRR,70,60,80",
+            "2024-11-01,REF2,ANIO_ANTERIOR,20,15,25");
+
+        var resultado = _servicio.Leer();
+
+        var mesNoviembre = resultado.MesesHistoricos.Single(m => m.Mes == "2024-11-01");
+        Assert.Equal(2, mesNoviembre.Productos.Count);
+        Assert.Contains(mesNoviembre.Productos, p => p.Referencia == "REF1");
+        Assert.Contains(mesNoviembre.Productos, p => p.Referencia == "REF2");
+    }
 }

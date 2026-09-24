@@ -12,6 +12,7 @@ import {
 
 import { obtenerHistorico } from "../services/api";
 import { useDashboard } from "../hooks/useDashboard";
+import { useCatalogoProductos } from "../hooks/useCatalogoProductos";
 import SelectorProducto from "../components/SelectorProducto";
 import TarjetaPeriodo from "../components/TarjetaPeriodo";
 import EstadoCargando from "../components/EstadoCargando";
@@ -24,6 +25,8 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
     cargando,
     error,
   } = useDashboard("No fue posible obtener la información de ventas.");
+
+  const { obtenerNombreProducto } = useCatalogoProductos();
 
   const [referenciaSeleccionada, setReferenciaSeleccionada] = useState("");
   const [historico, setHistorico] = useState([]);
@@ -103,11 +106,19 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   // =========================================
 
   const pronosticosProducto = useMemo(() => {
-    if (!dashboard?.meses || !referenciaEfectiva) {
+    if (!referenciaEfectiva) {
       return [];
     }
 
-    return dashboard.meses
+    // dashboard.meses solo trae pronóstico a futuro (es también lo que usa
+    // el selector de horizonte). El backtest de meses ya pasados viene
+    // aparte, en mesesHistoricos, para no alterar ese horizonte.
+    const todosLosMeses = [
+      ...(dashboard?.mesesHistoricos || []),
+      ...(dashboard?.meses || []),
+    ];
+
+    return todosLosMeses
       .filter((mes) => {
         if (!mesSeleccionado) {
           return true;
@@ -127,90 +138,60 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
         return {
           mes: mes.mes,
           cantidad: Number(producto.pronostico || 0),
+          inferior: producto.inferior != null ? Number(producto.inferior) : null,
+          superior: producto.superior != null ? Number(producto.superior) : null,
         };
       })
       .filter(Boolean);
   }, [dashboard, referenciaEfectiva, mesSeleccionado]);
 
   // =========================================
-  // ÚLTIMO MES REAL
-  // =========================================
-
-  const ultimoMesReal = useMemo(() => {
-    if (!historico.length) {
-      return null;
-    }
-
-    return historico[historico.length - 1]?.mes || null;
-  }, [historico]);
-
-  // =========================================
   // DATOS PARA LA GRÁFICA
   // =========================================
 
+  // Combina, mes a mes, la venta real con el mínimo/máximo que el modelo
+  // había estimado para ese mismo mes: para meses ya pasados es el backtest
+  // causal (qué habría predicho con la información disponible hasta
+  // entonces) y para meses futuros es el pronóstico vigente.
   const datosGrafica = useMemo(() => {
     if (!historico.length) {
       return [];
     }
 
-    const datos = [];
-
-    // -----------------------------------------
-    // HISTÓRICO REAL
-    // -----------------------------------------
+    const filasPorMes = new Map();
 
     historico.forEach((item) => {
       if (mesSeleccionado && item.mes > mesSeleccionado) {
         return;
       }
 
-      datos.push({
+      filasPorMes.set(item.mes, {
         mes: item.mes,
         real: Number(item.cantidad || 0),
-        prediccion: null,
+        minimo: null,
+        maximo: null,
       });
     });
 
-    // -----------------------------------------
-    // PREDICCIONES
-    // -----------------------------------------
-
-    const predicciones = pronosticosProducto.filter(
-      (item) => item.mes > ultimoMesReal,
-    );
-
-    predicciones.forEach((item) => {
-      datos.push({
-        mes: item.mes,
-        real: null,
-        prediccion: item.cantidad,
-      });
-    });
-
-    // Orden cronológico
-    datos.sort((a, b) => a.mes.localeCompare(b.mes));
-
-    // -----------------------------------------
-    // CONECTAR ÚLTIMO REAL CON PREDICCIÓN
-    // -----------------------------------------
-
-    if (predicciones.length > 0 && historico.length > 0) {
-      const ultimoReal = historico[historico.length - 1];
-
-      const indiceUltimoReal = datos.findIndex(
-        (item) => item.mes === ultimoReal.mes,
-      );
-
-      if (indiceUltimoReal >= 0) {
-        datos[indiceUltimoReal] = {
-          ...datos[indiceUltimoReal],
-          prediccion: Number(ultimoReal.cantidad || 0),
-        };
+    pronosticosProducto.forEach((item) => {
+      if (item.inferior == null || item.superior == null) {
+        return;
       }
-    }
 
-    return datos;
-  }, [historico, pronosticosProducto, ultimoMesReal, mesSeleccionado]);
+      const filaExistente = filasPorMes.get(item.mes);
+
+      filasPorMes.set(item.mes, {
+        mes: item.mes,
+        real: filaExistente?.real ?? null,
+        minimo: item.inferior,
+        maximo: item.superior,
+      });
+    });
+
+    return Array.from(filasPorMes.values()).sort((a, b) =>
+      a.mes.localeCompare(b.mes),
+    );
+  }, [historico, pronosticosProducto, mesSeleccionado]);
 
   // =========================================
   // TOTALES
@@ -272,9 +253,15 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       {productoSeleccionado && (
         <div className="tendencias-info">
           <div className="info-producto">
-            <span className="info-label">Referencia</span>
+            <span className="info-label">Producto seleccionado</span>
 
-            <strong>{productoSeleccionado.referencia}</strong>
+            <strong>
+              {obtenerNombreProducto(productoSeleccionado.referencia)}
+            </strong>
+
+            <span className="info-codigo">
+              {productoSeleccionado.referencia}
+            </span>
           </div>
 
           <div className="info-producto">
@@ -308,6 +295,9 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
           productos={productos}
           valorSeleccionado={referenciaEfectiva}
           onSeleccionar={setReferenciaSeleccionada}
+          obtenerEtiquetaProducto={(producto) =>
+            obtenerNombreProducto(producto.referencia)
+          }
         />
       </div>
 
@@ -352,7 +342,7 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                 <Tooltip
                   formatter={(valor, nombre) => [
                     Number(valor).toLocaleString("es-CO"),
-                    nombre === "real" ? "Venta real" : "Predicción",
+                    nombre,
                   ]}
                   labelFormatter={(valor) => `Mes: ${valor}`}
                 />
@@ -376,19 +366,36 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                 />
 
                 {/* =================================
-                    PREDICCIÓN
+                    MÍNIMO ESTIMADO
                 ================================== */}
 
                 <Line
                   type="monotone"
-                  dataKey="prediccion"
-                  name="Predicción"
-                  stroke="#2563eb"
-                  strokeWidth={3}
-                  strokeDasharray="8 6"
+                  dataKey="minimo"
+                  name="Mínimo estimado"
+                  stroke="#c78228"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
                   dot={false}
                   activeDot={{
-                    r: 6,
+                    r: 5,
+                  }}
+                />
+
+                {/* =================================
+                    MÁXIMO ESTIMADO
+                ================================== */}
+
+                <Line
+                  type="monotone"
+                  dataKey="maximo"
+                  name="Máximo estimado"
+                  stroke="#66815d"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={false}
+                  activeDot={{
+                    r: 5,
                   }}
                 />
               </LineChart>

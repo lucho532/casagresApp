@@ -2,11 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Inicio from "./Inicio";
-import { obtenerDashboard } from "../services/api";
+import { obtenerDashboard, obtenerProductos } from "../services/api";
 
 vi.mock("../services/api", () => ({
   obtenerDashboard: vi.fn(),
+  obtenerProductos: vi.fn(),
 }));
+
+// Por defecto, sin catálogo: los nombres de producto caen de vuelta a la
+// referencia, que es justo lo que ya esperan las pruebas existentes.
+obtenerProductos.mockResolvedValue({ productos: [] });
 
 const dashboard = {
   meses: [
@@ -90,9 +95,12 @@ describe("Inicio", () => {
 
     const lista = await screen.findByText("Productos con mayor demanda");
     const contenedor = lista.closest(".inicio-ranking").querySelector(".inicio-ranking-lista");
-    const items = within(contenedor).getAllByText(/REF\d/);
+    const items = contenedor.querySelectorAll(".ranking-producto strong");
 
-    expect(items.map((el) => el.textContent)).toEqual(["REF2", "REF1"]);
+    expect(Array.from(items).map((el) => el.textContent)).toEqual([
+      "REF2",
+      "REF1",
+    ]);
   });
 
   it("muestra 'Sin método' cuando el producto no tiene método asignado", async () => {
@@ -100,7 +108,7 @@ describe("Inicio", () => {
 
     render(<Inicio {...propsBase} />);
 
-    expect(await screen.findByText("Sin método")).toBeInTheDocument();
+    expect(await screen.findByText(/Sin método/)).toBeInTheDocument();
   });
 
   it("muestra el estado vacío cuando el mes seleccionado no tiene productos", async () => {
@@ -132,6 +140,40 @@ describe("Inicio", () => {
     await usuario.selectOptions(screen.getByRole("combobox"), "2025-02-01");
 
     expect(setMesSeleccionado).toHaveBeenCalledWith("2025-02-01");
+  });
+
+  it("muestra el nombre del producto en vez de la referencia cuando el catálogo está disponible", async () => {
+    obtenerDashboard.mockResolvedValue(dashboard);
+    obtenerProductos.mockResolvedValue({
+      productos: [
+        { referencia: "REF1", descripcion: "Teja de barro" },
+        { referencia: "REF2", descripcion: "Ladrillo hueco" },
+      ],
+    });
+
+    render(<Inicio {...propsBase} />);
+
+    const tarjetaMayorDemanda = (
+      await screen.findByText("Mayor demanda")
+    ).closest(".inicio-kpi");
+
+    expect(tarjetaMayorDemanda).toHaveTextContent("Ladrillo hueco");
+    // El código del producto se sigue mostrando junto al nombre.
+    expect(tarjetaMayorDemanda).toHaveTextContent("REF2");
+
+    const lista = screen
+      .getByText("Productos con mayor demanda")
+      .closest(".inicio-ranking")
+      .querySelector(".inicio-ranking-lista");
+
+    expect(within(lista).getByText("Ladrillo hueco")).toBeInTheDocument();
+    expect(within(lista).getByText("Teja de barro")).toBeInTheDocument();
+    // El código sigue apareciendo junto al método, en la línea secundaria.
+    expect(lista).toHaveTextContent("REF1");
+    expect(lista).toHaveTextContent("REF2");
+    // El nombre nunca aparece como texto exacto igual al código crudo.
+    expect(screen.queryByText("REF1")).not.toBeInTheDocument();
+    expect(screen.queryByText("REF2")).not.toBeInTheDocument();
   });
 
   it("al hacer clic en un acceso rápido, llama a cambiarPagina con el id correspondiente", async () => {

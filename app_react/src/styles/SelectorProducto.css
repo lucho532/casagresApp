@@ -124,6 +124,49 @@
   color: var(--texto-secundario);
 }
 
+/* LISTA DE COINCIDENCIAS EN VIVO */
+.resultados-busqueda-lista {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.resultados-busqueda-lista li + li {
+  margin-top: 2px;
+}
+
+.resultados-busqueda-lista button {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto-principal);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.resultados-busqueda-lista button:hover,
+.resultados-busqueda-lista button:focus {
+  background: #faf3ef;
+  outline: none;
+}
+
+.resultado-busqueda-vacio {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--texto-secundario);
+}
+
 @keyframes aparecerBusqueda {
   from {
     opacity: 0;

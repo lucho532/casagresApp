@@ -4,10 +4,15 @@ import EstadoCargando from "../components/EstadoCargando";
 import MensajeError from "../components/MensajeError";
 import "../styles/Productos.css";
 
+const TAMANOS_PAGINA = [20, 50, 100];
+
 function Productos() {
   const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+
+  const [pagina, setPagina] = useState(1);
+  const [tamanoPagina, setTamanoPagina] = useState(TAMANOS_PAGINA[0]);
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -76,6 +81,42 @@ function Productos() {
       return referencia.includes(texto) || descripcion.includes(texto);
     });
   }, [productos, busqueda]);
+
+  // =========================================
+  // PAGINACIÓN
+  // =========================================
+  //
+  // Con el catálogo completo mostrado como una sola tabla larga, cada
+  // búsqueda o simple exploración obligaba a desplazarse por cientos de
+  // filas. Se pagina el resultado ya filtrado, con un tamaño de página
+  // elegible por el usuario.
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(productosFiltrados.length / tamanoPagina),
+  );
+
+  // Si la búsqueda o el tamaño de página cambian, la página actual puede
+  // quedar fuera de rango (por ejemplo, estar en la página 5 y que el nuevo
+  // filtro solo tenga 2 páginas); se vuelve a la primera para no mostrar
+  // una tabla vacía sin explicación.
+  useEffect(() => {
+    setPagina(1);
+  }, [busqueda, tamanoPagina]);
+
+  const productosPagina = useMemo(() => {
+    const inicio = (pagina - 1) * tamanoPagina;
+
+    return productosFiltrados.slice(inicio, inicio + tamanoPagina);
+  }, [productosFiltrados, pagina, tamanoPagina]);
+
+  const irAPaginaAnterior = () => {
+    setPagina((actual) => Math.max(1, actual - 1));
+  };
+
+  const irAPaginaSiguiente = () => {
+    setPagina((actual) => Math.min(totalPaginas, actual + 1));
+  };
 
   // =========================================
   // ESTADO DE CARGA
@@ -188,7 +229,7 @@ function Productos() {
                     </td>
                   </tr>
                 ) : (
-                  productosFiltrados.map((producto) => (
+                  productosPagina.map((producto) => (
                     <tr
                       key={producto.referencia}
                       className={
@@ -213,6 +254,50 @@ function Productos() {
               </tbody>
             </table>
           </div>
+
+          {productosFiltrados.length > 0 && (
+            <div className="productos-paginacion">
+              <div className="productos-tamano-pagina">
+                <label htmlFor="tamano-pagina">Mostrar</label>
+
+                <select
+                  id="tamano-pagina"
+                  value={tamanoPagina}
+                  onChange={(e) => setTamanoPagina(Number(e.target.value))}
+                >
+                  {TAMANOS_PAGINA.map((tamano) => (
+                    <option key={tamano} value={tamano}>
+                      {tamano}
+                    </option>
+                  ))}
+                </select>
+
+                <span>productos por página</span>
+              </div>
+
+              <div className="productos-paginacion-controles">
+                <button
+                  type="button"
+                  onClick={irAPaginaAnterior}
+                  disabled={pagina === 1}
+                >
+                  ‹ Anterior
+                </button>
+
+                <span className="productos-paginacion-indicador">
+                  Página {pagina} de {totalPaginas}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={irAPaginaSiguiente}
+                  disabled={pagina === totalPaginas}
+                >
+                  Siguiente ›
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* =================================
