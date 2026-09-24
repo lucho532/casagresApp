@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -130,6 +131,8 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
         return {
           mes: mes.mes,
           cantidad: Number(producto.pronostico || 0),
+          inferior: producto.inferior != null ? Number(producto.inferior) : null,
+          superior: producto.superior != null ? Number(producto.superior) : null,
         };
       })
       .filter(Boolean);
@@ -187,6 +190,10 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
         mes: item.mes,
         real: null,
         prediccion: item.cantidad,
+        rango:
+          item.inferior != null && item.superior != null
+            ? [item.inferior, item.superior]
+            : null,
       });
     });
 
@@ -205,9 +212,15 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       );
 
       if (indiceUltimoReal >= 0) {
+        const primeraPrediccion = predicciones[0];
+
         datos[indiceUltimoReal] = {
           ...datos[indiceUltimoReal],
           prediccion: Number(ultimoReal.cantidad || 0),
+          rango:
+            primeraPrediccion?.inferior != null && primeraPrediccion?.superior != null
+              ? [primeraPrediccion.inferior, primeraPrediccion.superior]
+              : null,
         };
       }
     }
@@ -343,7 +356,7 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
         ) : (
           <div className="grafica-container">
             <ResponsiveContainer width="100%" height={420}>
-              <LineChart
+              <ComposedChart
                 data={datosGrafica}
                 margin={{
                   top: 10,
@@ -362,14 +375,38 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                 <YAxis />
 
                 <Tooltip
-                  formatter={(valor, nombre) => [
-                    Number(valor).toLocaleString("es-CO"),
-                    nombre === "real" ? "Venta real" : "Predicción",
-                  ]}
+                  formatter={(valor, nombre) => {
+                    if (Array.isArray(valor)) {
+                      return [
+                        `${Number(valor[0]).toLocaleString("es-CO")} - ${Number(
+                          valor[1],
+                        ).toLocaleString("es-CO")}`,
+                        nombre,
+                      ];
+                    }
+
+                    return [Number(valor).toLocaleString("es-CO"), nombre];
+                  }}
                   labelFormatter={(valor) => `Mes: ${valor}`}
                 />
 
                 <Legend />
+
+                {/* =================================
+                    RANGO ESTIMADO (MÍNIMO-MÁXIMO)
+                ================================== */}
+
+                <Area
+                  type="monotone"
+                  dataKey="rango"
+                  name="Rango estimado"
+                  stroke="none"
+                  fill="#2563eb"
+                  fillOpacity={0.15}
+                  connectNulls
+                  isAnimationActive={false}
+                  activeDot={false}
+                />
 
                 {/* =================================
                     VENTAS REALES
@@ -403,7 +440,7 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
                     r: 6,
                   }}
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
