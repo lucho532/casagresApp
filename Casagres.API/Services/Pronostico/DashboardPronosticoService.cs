@@ -16,6 +16,7 @@ public class DashboardPronosticoService : IDashboardPronosticoService
         var rutaPronostico = _rutas.RutaSalidas("pronostico.csv");
         var rutaIntervalos = _rutas.RutaSalidas("pronostico_intervalos.csv");
         var rutaMetodos = _rutas.RutaSalidas("metodo_por_serie.csv");
+        var rutaHistorico = _rutas.RutaSalidas("pronostico_historico.csv");
 
         AsegurarArchivosExisten(rutaPronostico, rutaIntervalos, rutaMetodos);
 
@@ -31,11 +32,19 @@ public class DashboardPronosticoService : IDashboardPronosticoService
         var intervalos = ConstruirIndiceIntervalos(File.ReadAllLines(rutaIntervalos));
         var metodos = ConstruirIndiceMetodos(File.ReadAllLines(rutaMetodos));
 
-        var meses = ConstruirMeses(lineasPronostico, encabezados, intervalos, metodos)
-            .OrderBy(mes => mes.Mes)
-            .ToList();
+        var meses = ConstruirMeses(lineasPronostico, encabezados, intervalos, metodos);
 
-        return new DashboardRespuesta { Meses = meses };
+        // pronostico_historico.csv es opcional: solo existe una vez que el
+        // pipeline de predicción se ejecuta con la versión que lo genera.
+        if (File.Exists(rutaHistorico))
+        {
+            meses.AddRange(ConstruirMesesHistoricos(File.ReadAllLines(rutaHistorico)));
+        }
+
+        return new DashboardRespuesta
+        {
+            Meses = meses.OrderBy(mes => mes.Mes).ToList()
+        };
     }
 
     private static void AsegurarArchivosExisten(
@@ -251,6 +260,80 @@ public class DashboardPronosticoService : IDashboardPronosticoService
             Superior = intervaloInfo.Superior,
             HalfWidth = intervaloInfo.HalfWidth
         };
+    }
+
+    // pronostico_historico.csv trae, mes a mes, lo que el modelo habría
+    // predicho para ese mes ya observado (backtest causal usado para
+    // calibrar los intervalos ACI). A diferencia de pronostico.csv, aquí
+    // cada fila ya trae su propia referencia, así que se agrupa por mes.
+    private static List<DashboardMes> ConstruirMesesHistoricos(string[] lineas)
+    {
+        var productosPorMes = new Dictionary<string, List<DashboardProducto>>();
+
+        for (int fila = 1; fila < lineas.Length; fila++)
+        {
+            var entrada = ExtraerFilaHistorico(lineas[fila]);
+
+            if (entrada is null)
+            {
+                continue;
+            }
+
+            var (mes, producto) = entrada.Value;
+
+            if (!productosPorMes.TryGetValue(mes, out var productos))
+            {
+                productos = new List<DashboardProducto>();
+                productosPorMes[mes] = productos;
+            }
+
+            productos.Add(producto);
+        }
+
+        return productosPorMes
+            .Select(par => new DashboardMes
+            {
+                Mes = par.Key,
+                CantidadProductos = par.Value.Count,
+                Productos = par.Value
+            })
+            .ToList();
+    }
+
+    private static (string Mes, DashboardProducto Producto)? ExtraerFilaHistorico(string linea)
+    {
+        if (string.IsNullOrWhiteSpace(linea))
+            return null;
+
+        var valores = linea.Split(',');
+
+        if (valores.Length < 6)
+            return null;
+
+        var mes = valores[0].Trim();
+        var referencia = valores[1].Trim();
+        var metodo = valores[2].Trim();
+
+        if (string.IsNullOrWhiteSpace(mes) || string.IsNullOrWhiteSpace(referencia))
+            return null;
+
+        var prediccion = CsvCampoParser.ADouble(valores[3]);
+        var inferior = CsvCampoParser.ADouble(valores[4]);
+        var superior = CsvCampoParser.ADouble(valores[5]);
+
+        if (prediccion is null)
+            return null;
+
+        var producto = new DashboardProducto
+        {
+            Referencia = referencia,
+            Pronostico = prediccion.Value,
+            Metodo = string.IsNullOrWhiteSpace(metodo) ? null : metodo,
+            Inferior = inferior,
+            Superior = superior
+        };
+
+        return (mes, producto);
     }
 
     private readonly record struct IntervaloInfo(

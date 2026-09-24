@@ -138,38 +138,26 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   }, [dashboard, referenciaEfectiva, mesSeleccionado]);
 
   // =========================================
-  // ÚLTIMO MES REAL
-  // =========================================
-
-  const ultimoMesReal = useMemo(() => {
-    if (!historico.length) {
-      return null;
-    }
-
-    return historico[historico.length - 1]?.mes || null;
-  }, [historico]);
-
-  // =========================================
   // DATOS PARA LA GRÁFICA
   // =========================================
 
+  // Combina, mes a mes, la venta real con el mínimo/máximo que el modelo
+  // había estimado para ese mismo mes: para meses ya pasados es el backtest
+  // causal (qué habría predicho con la información disponible hasta
+  // entonces) y para meses futuros es el pronóstico vigente.
   const datosGrafica = useMemo(() => {
     if (!historico.length) {
       return [];
     }
 
-    const datos = [];
-
-    // -----------------------------------------
-    // HISTÓRICO REAL
-    // -----------------------------------------
+    const filasPorMes = new Map();
 
     historico.forEach((item) => {
       if (mesSeleccionado && item.mes > mesSeleccionado) {
         return;
       }
 
-      datos.push({
+      filasPorMes.set(item.mes, {
         mes: item.mes,
         real: Number(item.cantidad || 0),
         minimo: null,
@@ -177,50 +165,25 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
       });
     });
 
-    // -----------------------------------------
-    // PREDICCIONES
-    // -----------------------------------------
+    pronosticosProducto.forEach((item) => {
+      if (item.inferior == null || item.superior == null) {
+        return;
+      }
 
-    const predicciones = pronosticosProducto.filter(
-      (item) => item.mes > ultimoMesReal,
-    );
+      const filaExistente = filasPorMes.get(item.mes);
 
-    predicciones.forEach((item) => {
-      datos.push({
+      filasPorMes.set(item.mes, {
         mes: item.mes,
-        real: null,
+        real: filaExistente?.real ?? null,
         minimo: item.inferior,
         maximo: item.superior,
       });
     });
 
-    // Orden cronológico
-    datos.sort((a, b) => a.mes.localeCompare(b.mes));
-
-    // -----------------------------------------
-    // CONECTAR ÚLTIMO REAL CON LA PRIMERA PREDICCIÓN
-    // -----------------------------------------
-
-    if (predicciones.length > 0 && historico.length > 0) {
-      const ultimoReal = historico[historico.length - 1];
-
-      const indiceUltimoReal = datos.findIndex(
-        (item) => item.mes === ultimoReal.mes,
-      );
-
-      if (indiceUltimoReal >= 0) {
-        const primeraPrediccion = predicciones[0];
-
-        datos[indiceUltimoReal] = {
-          ...datos[indiceUltimoReal],
-          minimo: primeraPrediccion.inferior,
-          maximo: primeraPrediccion.superior,
-        };
-      }
-    }
-
-    return datos;
-  }, [historico, pronosticosProducto, ultimoMesReal, mesSeleccionado]);
+    return Array.from(filasPorMes.values()).sort((a, b) =>
+      a.mes.localeCompare(b.mes),
+    );
+  }, [historico, pronosticosProducto, mesSeleccionado]);
 
   // =========================================
   // TOTALES

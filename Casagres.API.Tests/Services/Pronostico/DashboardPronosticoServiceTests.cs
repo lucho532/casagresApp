@@ -174,4 +174,56 @@ public class DashboardPronosticoServiceTests : IDisposable
         Assert.Equal(60, productoEnero.Inferior);
         Assert.Equal(70, productoFebrero.Inferior);
     }
+
+    [Fact]
+    public void Leer_SinPronosticoHistoricoCsv_SoloDevuelveLosMesesFuturos()
+    {
+        EscribirTresArchivosMinimos();
+
+        var resultado = _servicio.Leer();
+
+        Assert.Single(resultado.Meses);
+    }
+
+    [Fact]
+    public void Leer_ConPronosticoHistoricoCsv_AgregaLosMesesPasadosConSuRangoEstimado()
+    {
+        EscribirTresArchivosMinimos();
+        _carpeta.EscribirSalida(
+            "pronostico_historico.csv",
+            "mes,codigo_producto,metodo,prediccion,inferior,superior",
+            "2024-11-01,REF1,KRR,70,60,80",
+            "2024-12-01,REF1,KRR,75,65,85");
+
+        var resultado = _servicio.Leer();
+
+        Assert.Equal(
+            new[] { "2024-11-01", "2024-12-01", "2025-01-01" },
+            resultado.Meses.Select(m => m.Mes));
+
+        var productoNoviembre = resultado.Meses.Single(m => m.Mes == "2024-11-01").Productos.Single();
+        Assert.Equal("REF1", productoNoviembre.Referencia);
+        Assert.Equal(70, productoNoviembre.Pronostico);
+        Assert.Equal("KRR", productoNoviembre.Metodo);
+        Assert.Equal(60, productoNoviembre.Inferior);
+        Assert.Equal(80, productoNoviembre.Superior);
+    }
+
+    [Fact]
+    public void Leer_ConVariosProductosEnElMismoMesHistorico_LosAgrupaEnUnSoloMes()
+    {
+        EscribirTresArchivosMinimos();
+        _carpeta.EscribirSalida(
+            "pronostico_historico.csv",
+            "mes,codigo_producto,metodo,prediccion,inferior,superior",
+            "2024-11-01,REF1,KRR,70,60,80",
+            "2024-11-01,REF2,ANIO_ANTERIOR,20,15,25");
+
+        var resultado = _servicio.Leer();
+
+        var mesNoviembre = resultado.Meses.Single(m => m.Mes == "2024-11-01");
+        Assert.Equal(2, mesNoviembre.Productos.Count);
+        Assert.Contains(mesNoviembre.Productos, p => p.Referencia == "REF1");
+        Assert.Contains(mesNoviembre.Productos, p => p.Referencia == "REF2");
+    }
 }
