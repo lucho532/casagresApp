@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatearCantidad, formatearMes, formatearNumero } from "./formato";
+import {
+  formatearCantidad,
+  formatearMes,
+  formatearNumero,
+  obtenerIniciales,
+} from "./formato";
 
 describe("formatearNumero", () => {
   it("muestra un guion cuando el valor es null", () => {
@@ -50,5 +55,34 @@ describe("formatearMes", () => {
 
   it("formatea correctamente el primer mes del año", () => {
     expect(formatearMes("2025-01-01")).toBe("enero de 2025");
+  });
+});
+
+describe("obtenerIniciales", () => {
+  it("devuelve la inicial del primer y del último nombre", () => {
+    expect(obtenerIniciales("Juan Pérez")).toBe("JP");
+  });
+
+  it("con más de dos palabras, usa la primera y la última", () => {
+    expect(obtenerIniciales("Juan Carlos Pérez Gómez")).toBe("JG");
+  });
+
+  it("con una sola palabra, usa solo esa inicial", () => {
+    expect(obtenerIniciales("Juan")).toBe("J");
+  });
+
+  it("devuelve las iniciales en mayúscula aunque el nombre esté en minúscula", () => {
+    expect(obtenerIniciales("juan pérez")).toBe("JP");
+  });
+
+  it("ignora espacios extra entre palabras", () => {
+    expect(obtenerIniciales("  Juan   Pérez  ")).toBe("JP");
+  });
+
+  it("devuelve una cadena vacía cuando no hay nombre", () => {
+    expect(obtenerIniciales(null)).toBe("");
+    expect(obtenerIniciales(undefined)).toBe("");
+    expect(obtenerIniciales("")).toBe("");
+    expect(obtenerIniciales("   ")).toBe("");
   });
 });

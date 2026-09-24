@@ -32,6 +32,7 @@ builder.Services.AddSingleton<IActualizacionService, ActualizacionService>();
 builder.Services.AddSingleton<ActualizacionEstadoService>();
 builder.Services.AddHostedService<MonitorOneDriveService>();
 builder.Services.AddSingleton<IProductoService, ProductoService>();
+builder.Services.AddScoped<IFotoPerfilService, FotoPerfilService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();

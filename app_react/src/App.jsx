@@ -221,6 +221,10 @@ function App() {
         <Header
           paginaActual={paginaActual}
           ultimaActualizacion={ultimaActualizacion}
+          fotoUrl={perfil?.fotoUrl}
+          onFotoActualizada={(fotoUrl) =>
+            setPerfil((actual) => ({ ...actual, fotoUrl }))
+          }
         />
 
         <main className="contenido">{renderizarPagina()}</main>

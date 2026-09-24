@@ -1,8 +1,23 @@
 import axios from "axios";
 
+const URL_API = import.meta.env.VITE_API_URL || "http://localhost:5121/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5121/api",
+  baseURL: URL_API,
 });
+
+// Backend y frontend viven en dominios distintos: las rutas que devuelve el
+// backend (como FotoUrl, "/api/auth/foto-perfil/5") son relativas a SU
+// propio origen, no al de la página. Un <img src> necesita la URL completa.
+const ORIGEN_API = URL_API.replace(/\/api\/?$/, "");
+
+export const obtenerUrlCompleta = (rutaRelativa) => {
+  if (!rutaRelativa) {
+    return rutaRelativa;
+  }
+
+  return `${ORIGEN_API}${rutaRelativa}`;
+};
 
 
 /* =========================================================
@@ -145,6 +160,17 @@ export const iniciarSesion = async (email, password) => {
 
 export const obtenerPerfil = async () => {
   const respuesta = await api.get("/auth/perfil");
+  return respuesta.data;
+};
+
+export const subirFotoPerfil = async (archivo) => {
+  const formData = new FormData();
+  formData.append("foto", archivo);
+
+  const respuesta = await api.post("/auth/foto-perfil", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
   return respuesta.data;
 };
 

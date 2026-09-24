@@ -53,6 +53,11 @@
   white-space: nowrap;
 }
 
+.header-usuario-avatar-contenedor {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .header-usuario-icono {
   width: 36px;
   height: 36px;
@@ -62,6 +67,50 @@
   align-items: center;
   justify-content: center;
   font-size: 17px;
+  overflow: hidden;
+}
+
+.header-usuario-foto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-usuario-iniciales {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.header-usuario-boton-cambiar-foto {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--casagres-principal, #b54a32);
+  color: white;
+  font-size: 9px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.header-usuario-boton-cambiar-foto:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.header-usuario-error-foto {
+  margin-top: 1px;
+  font-size: 11px;
+  color: #dc2626;
+  text-align: right;
 }
 
 .header-usuario-info {

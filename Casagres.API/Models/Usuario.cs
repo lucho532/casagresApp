@@ -20,4 +20,9 @@ public class Usuario
     public string Rol { get; set; } = Roles.Pendiente;
 
     public bool EmailVerificado { get; set; }
+
+    // Ruta relativa servida por el propio backend (/api/auth/foto-perfil/{id})
+    // hacia la foto que el usuario subió manualmente. Nula si nunca subió
+    // ninguna (el frontend muestra sus iniciales en ese caso).
+    public string? FotoUrl { get; set; }
 }
