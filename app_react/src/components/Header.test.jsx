@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Header from "./Header";
 import { obtenerNombre, obtenerRol } from "../utils/auth";
-import { obtenerUrlCompleta, subirFotoPerfil } from "../services/api";
+import { obtenerUrlCompleta } from "../services/api";
 
 vi.mock("../utils/auth", () => ({
   obtenerNombre: vi.fn(),
@@ -12,13 +12,7 @@ vi.mock("../utils/auth", () => ({
 
 vi.mock("../services/api", () => ({
   obtenerUrlCompleta: vi.fn((ruta) => (ruta ? `https://api.ejemplo.com${ruta}` : ruta)),
-  subirFotoPerfil: vi.fn(),
 }));
-
-function crearArchivo(nombre, contentType, tamanoBytes = 100) {
-  const archivo = new File([new Uint8Array(tamanoBytes)], nombre, { type: contentType });
-  return archivo;
-}
 
 beforeEach(() => {
   obtenerNombre.mockReturnValue(null);
@@ -39,6 +33,12 @@ describe("Header", () => {
     render(<Header paginaActual="pagina-desconocida" />);
 
     expect(screen.getByRole("heading", { name: "CASAGRES" })).toBeInTheDocument();
+  });
+
+  it("muestra 'Mi perfil' como título cuando la página actual es perfil", () => {
+    render(<Header paginaActual="perfil" />);
+
+    expect(screen.getByRole("heading", { name: "Mi perfil" })).toBeInTheDocument();
   });
 
   it("muestra el nombre del usuario cuando está disponible", () => {
@@ -95,6 +95,18 @@ describe("Header", () => {
     expect(screen.queryByText(/Última actualización/)).not.toBeInTheDocument();
   });
 
+  it("al hacer clic en el nombre, llama a onAbrirPerfil", async () => {
+    const onAbrirPerfil = vi.fn();
+    obtenerNombre.mockReturnValue("Juan Pérez");
+    const usuario = userEvent.setup();
+
+    render(<Header paginaActual="inicio" onAbrirPerfil={onAbrirPerfil} />);
+
+    await usuario.click(screen.getByRole("button", { name: "Juan Pérez" }));
+
+    expect(onAbrirPerfil).toHaveBeenCalledTimes(1);
+  });
+
   describe("avatar", () => {
     it("muestra las iniciales cuando no hay foto de perfil", () => {
       obtenerNombre.mockReturnValue("Juan Pérez");
@@ -128,102 +140,6 @@ describe("Header", () => {
 
       expect(screen.getByText("JP")).toBeInTheDocument();
       expect(screen.queryByAltText("Foto de perfil")).not.toBeInTheDocument();
-    });
-  });
-
-  describe("subir foto de perfil", () => {
-    it("al elegir una imagen válida, la sube y avisa al padre con la nueva URL", async () => {
-      const onFotoActualizada = vi.fn();
-      subirFotoPerfil.mockResolvedValue({ fotoUrl: "/api/auth/foto-perfil/1?v=123" });
-      const usuario = userEvent.setup();
-
-      const { container } = render(
-        <Header paginaActual="inicio" onFotoActualizada={onFotoActualizada} />,
-      );
-
-      const input = container.querySelector('input[type="file"]');
-      const archivo = crearArchivo("foto.jpg", "image/jpeg");
-
-      await usuario.upload(input, archivo);
-
-      await waitFor(() =>
-        expect(onFotoActualizada).toHaveBeenCalledWith("/api/auth/foto-perfil/1?v=123"),
-      );
-      expect(subirFotoPerfil).toHaveBeenCalledWith(archivo);
-    });
-
-    it("rechaza un formato no soportado sin llamar al backend", async () => {
-      const { container } = render(<Header paginaActual="inicio" />);
-
-      const input = container.querySelector('input[type="file"]');
-      const archivo = crearArchivo("foto.gif", "image/gif");
-
-      // userEvent.upload filtra los archivos según el atributo "accept" del
-      // input, así que un .gif nunca llegaría a disparar el evento (el
-      // selector nativo del navegador ya lo habría bloqueado). Se usa
-      // fireEvent para simular el caso límite en que sí llega uno (por
-      // ejemplo, arrastrando el archivo), y así probar la validación propia
-      // del componente como una segunda barrera.
-      fireEvent.change(input, { target: { files: [archivo] } });
-
-      expect(await screen.findByText("Usa una imagen JPG, PNG o WEBP.")).toBeInTheDocument();
-      expect(subirFotoPerfil).not.toHaveBeenCalled();
-    });
-
-    it("rechaza una imagen mayor a 3 MB sin llamar al backend", async () => {
-      const usuario = userEvent.setup();
-      const { container } = render(<Header paginaActual="inicio" />);
-
-      const input = container.querySelector('input[type="file"]');
-      const archivo = crearArchivo("foto.jpg", "image/jpeg", 3 * 1024 * 1024 + 1);
-
-      await usuario.upload(input, archivo);
-
-      expect(
-        await screen.findByText("La imagen no puede superar los 3 MB."),
-      ).toBeInTheDocument();
-      expect(subirFotoPerfil).not.toHaveBeenCalled();
-    });
-
-    it("si el backend rechaza la imagen, muestra el mensaje de error", async () => {
-      subirFotoPerfil.mockRejectedValue({
-        response: { data: { mensaje: "La imagen no pudo procesarse." } },
-      });
-      const usuario = userEvent.setup();
-      const { container } = render(<Header paginaActual="inicio" />);
-
-      const input = container.querySelector('input[type="file"]');
-      await usuario.upload(input, crearArchivo("foto.png", "image/png"));
-
-      expect(
-        await screen.findByText("La imagen no pudo procesarse."),
-      ).toBeInTheDocument();
-    });
-
-    it("deshabilita el botón de cambiar foto mientras se sube", async () => {
-      let resolverSubida;
-      subirFotoPerfil.mockReturnValue(
-        new Promise((resolve) => {
-          resolverSubida = resolve;
-        }),
-      );
-      const usuario = userEvent.setup();
-      const { container } = render(<Header paginaActual="inicio" />);
-
-      const input = container.querySelector('input[type="file"]');
-      await usuario.upload(input, crearArchivo("foto.png", "image/png"));
-
-      expect(
-        screen.getByRole("button", { name: "Cambiar foto de perfil" }),
-      ).toBeDisabled();
-
-      resolverSubida({ fotoUrl: "/api/auth/foto-perfil/1" });
-
-      await waitFor(() =>
-        expect(
-          screen.getByRole("button", { name: "Cambiar foto de perfil" }),
-        ).toBeEnabled(),
-      );
     });
   });
 });

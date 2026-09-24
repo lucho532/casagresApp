@@ -100,6 +100,28 @@ describe("App", () => {
     expect(obtenerDashboard).toHaveBeenCalled();
   });
 
+  it("al hacer clic en el nombre del usuario, abre la pantalla de Mi perfil", async () => {
+    sessionStorage.setItem("token", "un-token-cualquiera");
+    obtenerPerfil.mockResolvedValue(perfilUsuario);
+    obtenerDashboard.mockResolvedValue(dashboardVacio);
+    obtenerEstadoActualizacion.mockResolvedValue(estadoActualizacionInactivo);
+    const usuario = userEvent.setup();
+
+    render(<App />);
+    await screen.findByText("Analítica de ventas");
+
+    // obtenerNombre() decodifica el nombre desde el JWT real (no desde
+    // /api/auth/perfil); como estas pruebas usan un token de mentira, cae
+    // al texto por defecto "Usuario".
+    await usuario.click(screen.getByRole("button", { name: "Usuario" }));
+
+    // Tanto el título del Header (h1) como el encabezado propio de la
+    // página (h2) dicen "Mi perfil"; se distingue por el nivel.
+    expect(
+      await screen.findByRole("heading", { name: "Mi perfil", level: 2 }),
+    ).toBeInTheDocument();
+  });
+
   it(
     "mientras el usuario está pendiente, si lo aprueban se actualiza sola a la app completa",
     async () => {
