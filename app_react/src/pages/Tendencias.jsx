@@ -106,11 +106,19 @@ function Tendencias({ mesSeleccionado, mesesDisponibles, setMesSeleccionado }) {
   // =========================================
 
   const pronosticosProducto = useMemo(() => {
-    if (!dashboard?.meses || !referenciaEfectiva) {
+    if (!referenciaEfectiva) {
       return [];
     }
 
-    return dashboard.meses
+    // dashboard.meses solo trae pronóstico a futuro (es también lo que usa
+    // el selector de horizonte). El backtest de meses ya pasados viene
+    // aparte, en mesesHistoricos, para no alterar ese horizonte.
+    const todosLosMeses = [
+      ...(dashboard?.mesesHistoricos || []),
+      ...(dashboard?.meses || []),
+    ];
+
+    return todosLosMeses
       .filter((mes) => {
         if (!mesSeleccionado) {
           return true;

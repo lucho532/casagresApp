@@ -32,18 +32,22 @@ public class DashboardPronosticoService : IDashboardPronosticoService
         var intervalos = ConstruirIndiceIntervalos(File.ReadAllLines(rutaIntervalos));
         var metodos = ConstruirIndiceMetodos(File.ReadAllLines(rutaMetodos));
 
-        var meses = ConstruirMeses(lineasPronostico, encabezados, intervalos, metodos);
+        var meses = ConstruirMeses(lineasPronostico, encabezados, intervalos, metodos)
+            .OrderBy(mes => mes.Mes)
+            .ToList();
 
         // pronostico_historico.csv es opcional: solo existe una vez que el
         // pipeline de predicción se ejecuta con la versión que lo genera.
-        if (File.Exists(rutaHistorico))
-        {
-            meses.AddRange(ConstruirMesesHistoricos(File.ReadAllLines(rutaHistorico)));
-        }
+        var mesesHistoricos = File.Exists(rutaHistorico)
+            ? ConstruirMesesHistoricos(File.ReadAllLines(rutaHistorico))
+                .OrderBy(mes => mes.Mes)
+                .ToList()
+            : new List<DashboardMes>();
 
         return new DashboardRespuesta
         {
-            Meses = meses.OrderBy(mes => mes.Mes).ToList()
+            Meses = meses,
+            MesesHistoricos = mesesHistoricos
         };
     }
 

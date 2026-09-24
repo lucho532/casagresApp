@@ -211,6 +211,33 @@ describe("Tendencias", () => {
     expect(obtenerHistorico).not.toHaveBeenCalled();
   });
 
+  it("mesesHistoricos no afecta el producto de mayor demanda ni el horizonte por defecto", async () => {
+    // dashboard.meses es lo único que usa el resto de la app (App.jsx) para
+    // fijar el horizonte por defecto. mesesHistoricos (el backtest de
+    // meses ya pasados, usado solo para el mínimo/máximo de la gráfica) no
+    // debe filtrarse en esa selección aunque traiga un pronóstico mayor.
+    obtenerProductos.mockResolvedValue({ productos: [] });
+    obtenerDashboard.mockResolvedValue({
+      ...dashboard,
+      mesesHistoricos: [
+        {
+          mes: "2024-01-01",
+          productos: [
+            { referencia: "REF2", pronostico: 999, inferior: 900, superior: 1000 },
+          ],
+        },
+      ],
+    });
+    obtenerHistorico.mockResolvedValue(historicoRef1);
+
+    render(<Tendencias mesSeleccionado="2025-01-01" />);
+    await esperarCarga();
+
+    expect(obtenerHistorico).toHaveBeenCalledWith("REF1");
+    await screen.findByText("100");
+    expect(valorInfo("Producto seleccionado")).toBe("REF1");
+  });
+
   it("con mesesDisponibles, la tarjeta de periodo permite cambiar el mes seleccionado", async () => {
     obtenerDashboard.mockResolvedValue(dashboard);
     obtenerHistorico.mockResolvedValue(historicoRef1);

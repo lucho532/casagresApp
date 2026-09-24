@@ -176,18 +176,23 @@ public class DashboardPronosticoServiceTests : IDisposable
     }
 
     [Fact]
-    public void Leer_SinPronosticoHistoricoCsv_SoloDevuelveLosMesesFuturos()
+    public void Leer_SinPronosticoHistoricoCsv_MesesHistoricosQuedaVacio()
     {
         EscribirTresArchivosMinimos();
 
         var resultado = _servicio.Leer();
 
         Assert.Single(resultado.Meses);
+        Assert.Empty(resultado.MesesHistoricos);
     }
 
     [Fact]
-    public void Leer_ConPronosticoHistoricoCsv_AgregaLosMesesPasadosConSuRangoEstimado()
+    public void Leer_ConPronosticoHistoricoCsv_LoExponeSeparadoDeLosMesesFuturos()
     {
+        // El histórico va en su propio campo, NO mezclado con Meses: el
+        // resto de la app (selector de horizonte en Inicio/Demanda futura/
+        // Decisiones/Tendencias) asume que Meses solo trae pronóstico a
+        // futuro y toma su primer elemento como el horizonte por defecto.
         EscribirTresArchivosMinimos();
         _carpeta.EscribirSalida(
             "pronostico_historico.csv",
@@ -197,11 +202,13 @@ public class DashboardPronosticoServiceTests : IDisposable
 
         var resultado = _servicio.Leer();
 
+        Assert.Equal(new[] { "2025-01-01" }, resultado.Meses.Select(m => m.Mes));
         Assert.Equal(
-            new[] { "2024-11-01", "2024-12-01", "2025-01-01" },
-            resultado.Meses.Select(m => m.Mes));
+            new[] { "2024-11-01", "2024-12-01" },
+            resultado.MesesHistoricos.Select(m => m.Mes));
 
-        var productoNoviembre = resultado.Meses.Single(m => m.Mes == "2024-11-01").Productos.Single();
+        var productoNoviembre = resultado.MesesHistoricos
+            .Single(m => m.Mes == "2024-11-01").Productos.Single();
         Assert.Equal("REF1", productoNoviembre.Referencia);
         Assert.Equal(70, productoNoviembre.Pronostico);
         Assert.Equal("KRR", productoNoviembre.Metodo);
@@ -221,7 +228,7 @@ public class DashboardPronosticoServiceTests : IDisposable
 
         var resultado = _servicio.Leer();
 
-        var mesNoviembre = resultado.Meses.Single(m => m.Mes == "2024-11-01");
+        var mesNoviembre = resultado.MesesHistoricos.Single(m => m.Mes == "2024-11-01");
         Assert.Equal(2, mesNoviembre.Productos.Count);
         Assert.Contains(mesNoviembre.Productos, p => p.Referencia == "REF1");
         Assert.Contains(mesNoviembre.Productos, p => p.Referencia == "REF2");
