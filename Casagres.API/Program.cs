@@ -4,6 +4,7 @@ using Casagres.API.Services;
 using Casagres.API.Services.Pronostico;
 using Casagres.API.Middleware;
 using Casagres.API;
+using Casagres.API.Configuration;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,7 +42,7 @@ builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>(
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
     {
-        var clave = builder.Configuration["Jwt:Key"];
+        var clave = ConfiguracionJwt.ObtenerClaveObligatoria(builder.Configuration);
 
         options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
         {
@@ -49,11 +50,13 @@ builder.Services.AddAuthentication("Bearer")
 
             IssuerSigningKey =
                 new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                    System.Text.Encoding.UTF8.GetBytes(clave!)
+                    System.Text.Encoding.UTF8.GetBytes(clave)
                 ),
 
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = true,
+            ValidIssuer = ConfiguracionJwt.ObtenerEmisor(builder.Configuration),
+            ValidateAudience = true,
+            ValidAudience = ConfiguracionJwt.ObtenerAudiencia(builder.Configuration),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
@@ -66,6 +69,8 @@ builder.Services.AddControllers(options =>
         new Microsoft.AspNetCore.Mvc.Authorization.AuthorizeFilter());
 });
 builder.Services.AddOpenApi();
+builder.Services.AddExceptionHandler<ManejadorGlobalDeExcepciones>();
+builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<IMicrosoftAuthService, MicrosoftAuthService>();
 builder.Services.AddSingleton<IGraphService, GraphService>();
 
@@ -77,10 +82,14 @@ builder.Services.AddDbContext<CasagresDbContext>(options =>
 );
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
+// CORS antes de la autenticación: así las respuestas 401 (incluida la del
+// middleware de revalidación) y los preflight OPTIONS llevan sus cabeceras.
+app.UseCors("ReactPolicy");
 app.UseAuthentication();
 app.UseMiddleware<RevalidarUsuarioMiddleware>();
 app.UseAuthorization();
-app.UseCors("ReactPolicy");
 
 if (app.Environment.IsDevelopment())
 {

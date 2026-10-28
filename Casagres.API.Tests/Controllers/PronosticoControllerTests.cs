@@ -38,49 +38,6 @@ public class PronosticoControllerTests
     }
 
     [Fact]
-    public void ObtenerPronostico_CuandoFaltaConfiguracion_Devuelve500()
-    {
-        _pronosticoService.Setup(s => s.Leer())
-            .Throws(new InvalidOperationException("No está configurada la ruta de datos."));
-
-        var resultado = Assert.IsType<ObjectResult>(CrearController().ObtenerPronostico());
-
-        Assert.Equal(500, resultado.StatusCode);
-    }
-
-    [Fact]
-    public void ObtenerPronostico_CuandoNoExisteElArchivo_Devuelve404()
-    {
-        _pronosticoService.Setup(s => s.Leer())
-            .Throws(new FileNotFoundException("No se encontró el archivo de pronóstico.", "ruta.csv"));
-
-        Assert.IsType<NotFoundObjectResult>(CrearController().ObtenerPronostico());
-    }
-
-    [Fact]
-    public void ObtenerPronostico_ConErrorInesperado_Devuelve500()
-    {
-        _pronosticoService.Setup(s => s.Leer()).Throws(new Exception("boom"));
-
-        var resultado = Assert.IsType<ObjectResult>(CrearController().ObtenerPronostico());
-
-        Assert.Equal(500, resultado.StatusCode);
-    }
-
-    // ============================================================
-    // ObtenerPronosticoIntervalos
-    // ============================================================
-
-    [Fact]
-    public void ObtenerPronosticoIntervalos_CuandoNoExisteElArchivo_Devuelve404()
-    {
-        _intervalosService.Setup(s => s.Leer())
-            .Throws(new FileNotFoundException("No se encontró el archivo de intervalos."));
-
-        Assert.IsType<NotFoundObjectResult>(CrearController().ObtenerPronosticoIntervalos());
-    }
-
-    [Fact]
     public void ObtenerPronosticoIntervalos_CuandoElServicioTieneExito_DevuelveOk()
     {
         _intervalosService.Setup(s => s.Leer()).Returns(new PronosticoIntervalosResponse());
@@ -101,58 +58,12 @@ public class PronosticoControllerTests
     }
 
     [Fact]
-    public void ObtenerMetodos_CuandoNoExisteElArchivo_Devuelve404()
-    {
-        _metodosService.Setup(s => s.Leer())
-            .Throws(new FileNotFoundException("No se encontró el archivo de métodos."));
-
-        Assert.IsType<NotFoundObjectResult>(CrearController().ObtenerMetodos());
-    }
-
-    // ============================================================
-    // ObtenerDashboard
-    // ============================================================
-
-    [Fact]
     public void ObtenerDashboard_CuandoElServicioTieneExito_DevuelveOk()
     {
         _dashboardService.Setup(s => s.Leer()).Returns(new DashboardRespuesta());
 
         Assert.IsType<OkObjectResult>(CrearController().ObtenerDashboard());
     }
-
-    [Fact]
-    public void ObtenerDashboard_CuandoFaltaUnArchivo_Devuelve404()
-    {
-        _dashboardService.Setup(s => s.Leer())
-            .Throws(new FileNotFoundException("No se encontró pronostico.csv."));
-
-        Assert.IsType<NotFoundObjectResult>(CrearController().ObtenerDashboard());
-    }
-
-    [Fact]
-    public void ObtenerDashboard_CuandoNoHayDatos_Devuelve404()
-    {
-        _dashboardService.Setup(s => s.Leer())
-            .Throws(new DatosNoEncontradosException("pronostico.csv no contiene datos."));
-
-        Assert.IsType<NotFoundObjectResult>(CrearController().ObtenerDashboard());
-    }
-
-    [Fact]
-    public void ObtenerDashboard_ConFalloDeConfiguracion_Devuelve500()
-    {
-        _dashboardService.Setup(s => s.Leer())
-            .Throws(new InvalidOperationException("No está configurada la ruta de datos."));
-
-        var resultado = Assert.IsType<ObjectResult>(CrearController().ObtenerDashboard());
-
-        Assert.Equal(500, resultado.StatusCode);
-    }
-
-    // ============================================================
-    // ObtenerHistorico
-    // ============================================================
 
     [Fact]
     public void ObtenerHistorico_CuandoElServicioTieneExito_DevuelveOk()
@@ -172,12 +83,49 @@ public class PronosticoControllerTests
         _historicoService.Verify(s => s.Leer("REF1"), Times.Once);
     }
 
+    // ============================================================
+    // Errores: el controlador no los atrapa, los resuelve el manejador global
+    // ============================================================
+
     [Fact]
-    public void ObtenerHistorico_ConReferenciaInexistente_Devuelve404()
+    public void ObtenerPronostico_CuandoElServicioFalla_PropagaLaExcepcion()
+    {
+        _pronosticoService.Setup(s => s.Leer()).Throws(new FileNotFoundException("falta"));
+
+        Assert.Throws<FileNotFoundException>(() => CrearController().ObtenerPronostico());
+    }
+
+    [Fact]
+    public void ObtenerPronosticoIntervalos_CuandoElServicioFalla_PropagaLaExcepcion()
+    {
+        _intervalosService.Setup(s => s.Leer()).Throws(new FileNotFoundException("falta"));
+
+        Assert.Throws<FileNotFoundException>(() => CrearController().ObtenerPronosticoIntervalos());
+    }
+
+    [Fact]
+    public void ObtenerMetodos_CuandoElServicioFalla_PropagaLaExcepcion()
+    {
+        _metodosService.Setup(s => s.Leer()).Throws(new FileNotFoundException("falta"));
+
+        Assert.Throws<FileNotFoundException>(() => CrearController().ObtenerMetodos());
+    }
+
+    [Fact]
+    public void ObtenerDashboard_CuandoNoHayDatos_PropagaLaExcepcion()
+    {
+        _dashboardService.Setup(s => s.Leer())
+            .Throws(new DatosNoEncontradosException("pronostico.csv no contiene datos."));
+
+        Assert.Throws<DatosNoEncontradosException>(() => CrearController().ObtenerDashboard());
+    }
+
+    [Fact]
+    public void ObtenerHistorico_ConReferenciaInexistente_PropagaLaExcepcion()
     {
         _historicoService.Setup(s => s.Leer(It.IsAny<string?>()))
             .Throws(new DatosNoEncontradosException("No se encontró la referencia 'NO-EXISTE'."));
 
-        Assert.IsType<NotFoundObjectResult>(CrearController().ObtenerHistorico("NO-EXISTE"));
+        Assert.Throws<DatosNoEncontradosException>(() => CrearController().ObtenerHistorico("NO-EXISTE"));
     }
 }

@@ -34,125 +34,30 @@ public class PronosticoController : ControllerBase
     [HttpGet("pronostico")]
     public IActionResult ObtenerPronostico()
     {
-        try
-        {
-            return Ok(_pronosticoService.Leer());
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(500, new { mensaje = ex.Message });
-        }
-        catch (FileNotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message, ruta = ex.FileName });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                mensaje = "Error al obtener el pronóstico.",
-                error = ex.Message
-            });
-        }
+        return Ok(_pronosticoService.Leer());
     }
 
     [HttpGet("pronostico-intervalos")]
     public IActionResult ObtenerPronosticoIntervalos()
     {
-        try
-        {
-            return Ok(_intervalosService.Leer());
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(500, new { mensaje = ex.Message });
-        }
-        catch (FileNotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message, ruta = ex.FileName });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                mensaje = "Error al obtener los intervalos del pronóstico.",
-                error = ex.Message
-            });
-        }
+        return Ok(_intervalosService.Leer());
     }
 
     [HttpGet("metodos")]
     public IActionResult ObtenerMetodos()
     {
-        try
-        {
-            return Ok(_metodosService.Leer());
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(500, new { mensaje = ex.Message });
-        }
-        catch (FileNotFoundException ex)
-        {
-            return NotFound(new { mensaje = ex.Message, ruta = ex.FileName });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                mensaje = "Error al obtener los métodos por serie.",
-                error = ex.Message
-            });
-        }
+        return Ok(_metodosService.Leer());
     }
 
     [HttpGet("dashboard")]
     public IActionResult ObtenerDashboard()
     {
-        try
-        {
-            return Ok(_dashboardService.Leer());
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(500, new { mensaje = ex.Message });
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DatosNoEncontradosException)
-        {
-            return NotFound(new { mensaje = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                mensaje = "Error al construir los datos del dashboard.",
-                error = ex.Message
-            });
-        }
+        return Ok(_dashboardService.Leer());
     }
 
     [HttpGet("historico")]
     public IActionResult ObtenerHistorico([FromQuery] string? referencia = null)
     {
-        try
-        {
-            return Ok(_historicoService.Leer(referencia));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(500, new { mensaje = ex.Message });
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DatosNoEncontradosException)
-        {
-            return NotFound(new { mensaje = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                mensaje = "Error al obtener el histórico de ventas.",
-                error = ex.Message
-            });
-        }
+        return Ok(_historicoService.Leer(referencia));
     }
 }
