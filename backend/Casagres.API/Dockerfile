@@ -1,7 +1,7 @@
 # Este Dockerfile se construye con el contexto en la RAÍZ del repositorio, no
-# dentro de Casagres.API/, porque necesita acceso a requirements.txt:
+# dentro de backend/Casagres.API/, porque necesita acceso a requirements.txt:
 #
-#   docker build -f Casagres.API/Dockerfile -t casagres-api .
+#   docker build -f backend/Casagres.API/Dockerfile -t casagres-api .
 
 # ============================================================
 # Etapa 1: compilar y publicar el backend .NET
@@ -9,11 +9,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-COPY Casagres.API/Casagres.API.csproj Casagres.API/
-RUN dotnet restore Casagres.API/Casagres.API.csproj
+COPY backend/Casagres.API/Casagres.API.csproj backend/Casagres.API/
+RUN dotnet restore backend/Casagres.API/Casagres.API.csproj
 
-COPY Casagres.API/ Casagres.API/
-RUN dotnet publish Casagres.API/Casagres.API.csproj \
+COPY backend/Casagres.API/ backend/Casagres.API/
+RUN dotnet publish backend/Casagres.API/Casagres.API.csproj \
     -c Release \
     -o /app/publish \
     --no-restore
@@ -48,7 +48,7 @@ COPY --from=build /app/publish .
 # Scripts del pipeline analítico (no se publican junto con el backend porque
 # no son código .NET, así que se copian aparte en la misma ruta relativa que
 # usa ActualizacionService: <Python:Proyecto>/src/...)
-COPY Casagres.API/src ./src
+COPY backend/Casagres.API/src ./src
 
 # El código ya parsea números con CultureInfo.InvariantCulture, así que no
 # depende de ICU: se corre en modo "invariant" para no tener que instalar
