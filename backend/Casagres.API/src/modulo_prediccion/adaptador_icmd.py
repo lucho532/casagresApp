@@ -191,7 +191,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--carpeta-datos",
         type=str,
-        default=r"C:\source\casagres\Casagres.API\proyecto_icmd",
+        default=r"C:\source\casagresackend\Casagres.API\proyecto_icmd",
         help="Carpeta con el Excel limpio y donde se guardará df_preprocessed.csv.",
     )
     args = parser.parse_args()

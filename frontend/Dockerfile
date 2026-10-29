@@ -1,8 +1,8 @@
-# Se construye con el contexto en app_react/:
+# Se construye con el contexto en frontend/:
 #
 #   docker build -t casagres-frontend \
 #     --build-arg VITE_API_URL=https://api.tu-dominio.com/api \
-#     app_react/
+#     frontend/
 
 # ============================================================
 # Etapa 1: build de producción con Vite

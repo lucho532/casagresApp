@@ -106,6 +106,8 @@ public class AuthServiceTests
         Assert.Equal("jperez@ejemplo.com", jwt.Claims.Single(c => c.Type == ClaimTypes.Name).Value);
         Assert.Equal("admin", jwt.Claims.Single(c => c.Type == ClaimTypes.Role).Value);
         Assert.Equal("Juan Pérez", jwt.Claims.Single(c => c.Type == "nombre").Value);
+        Assert.Equal("Casagres.API", jwt.Issuer);
+        Assert.Contains("Casagres.Web", jwt.Audiences);
     }
 
     [Fact]

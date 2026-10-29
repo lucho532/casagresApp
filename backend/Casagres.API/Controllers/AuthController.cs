@@ -124,7 +124,6 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
             [FromBody] LoginRequest request)

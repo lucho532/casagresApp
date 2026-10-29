@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Casagres.API/Dockerfile
+      dockerfile: backend/Casagres.API/Dockerfile
     ports:
       - "8090:8080"
     environment:
@@ -26,7 +26,7 @@ services:
 
   frontend:
     build:
-      context: app_react
+      context: frontend
       args:
         VITE_API_URL: ${VITE_API_URL}
     ports:

@@ -520,7 +520,7 @@ El backend es **multiplataforma** (probado en Windows y en Linux, incluyendo con
 Desde:
 
 ```text
-Casagres.API/
+backend/Casagres.API/
 ```
 
 ejecutar:
@@ -537,7 +537,7 @@ dotnet run
 Desde:
 
 ```text
-app_react/
+frontend/
 ```
 
 instalar las dependencias:
@@ -647,7 +647,7 @@ con Docker, sin instalar .NET, Node ni Python en la máquina destino.
    migraciones de Entity Framework (una sola vez, no en cada despliegue):
 
    ```powershell
-   cd Casagres.API
+   cd backend/Casagres.API
    dotnet ef database update
    ```
 
@@ -706,7 +706,7 @@ El proyecto cuenta con pruebas automatizadas tanto en el backend como en el fron
 
 ## Backend (xUnit + Moq)
 
-Desde `Casagres.API/`:
+Desde `backend/Casagres.API/`:
 
 ```powershell
 dotnet test
@@ -714,7 +714,7 @@ dotnet test
 
 ## Frontend (Vitest + React Testing Library)
 
-Desde `app_react/`:
+Desde `frontend/`:
 
 ```powershell
 npm test

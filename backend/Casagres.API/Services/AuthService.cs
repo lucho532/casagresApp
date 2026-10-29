@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using Casagres.API.Configuration;
 using Casagres.API.Data;
 using Casagres.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -490,6 +491,8 @@ public class AuthService : IAuthService
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
+            issuer: ConfiguracionJwt.ObtenerEmisor(_configuration),
+            audience: ConfiguracionJwt.ObtenerAudiencia(_configuration),
             claims: claims,
             expires: DateTime.UtcNow.AddHours(2),
             signingCredentials: credentials);
